@@ -1,0 +1,18 @@
+# 테라폼 관련 파일
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+.terraform.lock.hcl
+
+# 실행 파일 (eksctl 등)
+*.exe
+eksctl.exe
+
+# 민감한 변수 파일 (사용자가 직접 만들었을 경우)
+*.tfvars
+*.tfvars.json
+
+# 운영체제 관련
+.DS_Store
+Thmbs.db
