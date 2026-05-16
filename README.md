@@ -1,40 +1,29 @@
-# 될랑가...? (it's workinggg..?)
-온프레미스 서버를 위한 클라우드 확장 서비스
+# ON_P_VS_AWS
+
+온프레미스 vs AWS 기반 하이브리드 클라우드 확장 플랫폼
 
 ## 프로젝트 소개
-온프레미스 환경에서 운영되는 서비스에서 트래픽 폭주 발생 시 , AWS 클라우드 자원으로 자동 확장해 트래픽을 분산시키는 하이브리드 클라우드 기반 자동 확장 플랫폼
 
-## 주요기능
-- Route53 기반 트래픽 분산
-- Terraform 기반 AWS 인프라 자동 생성
-- GitHub Actions 기반 CI/CD 자동화
-- CloudWatch 기반 모니터링
-- Lambda 기반 자동 확장 및 회수
-- Grafana 기반 실시간 대시보드
+온프레미스 환경에서 운영되는 서비스를 Kubernetes 기반으로 구성하고, 트래픽 증가 상황에서 AWS EKS 환경과 비교하여 확장성, 운영성, 모니터링 차이를 분석하는 프로젝트입니다.
 
+온프레미스 환경은 kubeadm 기반 Kubernetes 클러스터로 구성하고, AWS 환경은 EKS 기반 Kubernetes 클러스터로 구성합니다. 동일한 애플리케이션을 양쪽 환경에 배포하여 부하 테스트와 모니터링 결과를 비교합니다.
 
-## 기술스택
-- AWS
-- Terraform
-- GitHub Actions
-- Docker
-- Route53
-- Lambda
-- CloudWatch
-- Grafana
-- Ansible
+## 프로젝트 목표
 
-# CI / CD 파이프라인
-GitHub Actions 기반 CI/CD 파이프라인을 구성
+- 온프레미스 Kubernetes 환경 구축
+- AWS EKS 환경 구축
+- 동일 애플리케이션의 양쪽 환경 배포
+- 모니터링 및 부하 테스트 기반 비교
+- CI/CD 자동화 구조 설계
 
-- main 브랜치 push 시 자동 실행
-- terraform init 자동 수행
-- terraform fmt 코드 포맷 검사
-- terraform validate 문법 검사
-- terraform plan 실행 예정 인프라 확인
+## 프로젝트 구조
 
-향후:
-- AWS Credentials 연동
-- terraform apply 자동화
-- Docker ECR Push 자동화
-- Lambda 기반 자동 확장 연동 예정
+```text
+ON_P_VS_AWS/
+├─ app/          # 공통 애플리케이션 코드
+├─ database/     # 공통 DB 스키마 및 초기 데이터
+├─ load-test/    # 부하 테스트 스크립트
+├─ on-pre/       # 온프레미스 환경 구성
+├─ aws/          # AWS EKS 환경 구성
+├─ cicd/         # CI/CD 관련 구성
+└─ docs/         # 문서
