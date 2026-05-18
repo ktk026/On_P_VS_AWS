@@ -1,24 +1,44 @@
-# On-Pre 환경 구성
+# CI/CD 구성
 
 ## 목표
 
-kubeadm 기반 Kubernetes 온프레미스 환경 구축 및 운영
+온프레미스(on-pre) 환경과 AWS 환경의 배포 자동화 구조를 설계합니다.
+
+현재 CI/CD 도구는 확정하지 않았으며, Jenkins와 GitHub Actions 중 프로젝트 상황에 맞는 방식을 검토합니다.
+
+---
 
 ## 주요 작업
 
-- Ubuntu VM 구성
-- Kubernetes 클러스터 구축
-- Flannel CNI 구성
-- ingress-nginx 구성
-- Prometheus / Grafana 모니터링 구성
+- 애플리케이션 빌드 자동화
+- Docker 이미지 생성 자동화
+- 온프레미스 환경 배포 자동화
+- AWS EKS 환경 배포 자동화
+- 브랜치 기반 배포 흐름 정리
+- 배포 실패 시 롤백 방식 검토
 
-## 디렉토리 설명
+---
 
-- infra/ : VM 및 네트워크 구성
-- k8s/ : Kubernetes 리소스 설정
-- monitoring/ : Prometheus / Grafana 구성
-- docs/ : 온프레미스 관련 문서
+## 검토 예정 도구
+
+- Jenkins
+- GitHub Actions
+- Docker Registry
+- AWS ECR
+- kubectl
+- Helm
+
+---
+
+## 디렉토리 역할
+
+이 디렉토리는 CI/CD 관련 설정 파일, 파이프라인 스크립트, 배포 자동화 문서를 관리합니다.
+
+도구가 확정되기 전까지는 구체적인 Jenkinsfile이나 workflow 파일을 생성하지 않습니다.
+
+---
 
 ## 작업 브랜치
 
-on-pre
+```text
+cicd
