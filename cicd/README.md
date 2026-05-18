@@ -42,3 +42,15 @@
 
 ```text
 cicd
+
+## ECR Repository Naming
+
+| Service | Port | ECR Repository |
+|---|---:|---|
+| frontend | 3000 | shoply-frontend |
+| gateway | 4000 | shoply-gateway |
+| product | 4001 | shoply-product |
+| inventory | 4002 | shoply-inventory |
+| order | 4003 | shoply-order |
+| payment | 4004 | shoply-payment |
+| user | 4005 | shoply-user |
