@@ -54,3 +54,5 @@ cicd
 | order | 4003 | shoply-order |
 | payment | 4004 | shoply-payment |
 | user | 4005 | shoply-user |
+GitHub Actions, Docker Build, AWS ECR, Kubernetes 배포 시
+서비스명을 통일하기 위해 아래 규칙을 사용한다.
