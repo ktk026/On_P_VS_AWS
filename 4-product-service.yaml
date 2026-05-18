@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: stays-service
+  name: product-service
   namespace: accommodation
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: stays-service
+      app: product-service
   template:
     metadata:
       labels:
-        app: stays-service
+        app: product-service
     spec:
       containers:
-      - name: stays-service
-        image: python:3.11.9-slim
+      - name: product-service
+        image: product-service:latest
         ports:
         - containerPort: 8000
         envFrom:
@@ -28,11 +28,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: stays-service
+  name: product-service
   namespace: accommodation
 spec:
   selector:
-    app: stays-service
+    app: product-service
   ports:
   - port: 8000
     targetPort: 8000

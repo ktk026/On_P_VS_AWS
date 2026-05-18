@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: notification-service
+  name: user-service
   namespace: accommodation
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: notification-service
+      app: user-service
   template:
     metadata:
       labels:
-        app: notification-service
+        app: user-service
     spec:
       containers:
-      - name: notification-service
-        image: python:3.11.9-slim
+      - name: user-service
+        image: user-service:latest
         ports:
         - containerPort: 8000
         envFrom:
@@ -28,11 +28,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: notification-service
+  name: user-service
   namespace: accommodation
 spec:
   selector:
-    app: notification-service
+    app: user-service
   ports:
   - port: 8000
     targetPort: 8000

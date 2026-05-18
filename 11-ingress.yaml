@@ -22,26 +22,33 @@ spec:
           service:
             name: api-gateway
             port:
-              number: 80
-      - path: /api/auth
+              number: 3000
+      - path: /api/users
         pathType: Prefix
         backend:
           service:
-            name: auth-service
+            name: user-service
             port:
               number: 8000
-      - path: /api/stays
+      - path: /api/products
         pathType: Prefix
         backend:
           service:
-            name: stays-service
+            name: product-service
             port:
               number: 8000
-      - path: /api/bookings
+      - path: /api/inventory
         pathType: Prefix
         backend:
           service:
-            name: booking-service
+            name: inventory-service
+            port:
+              number: 8000
+      - path: /api/orders
+        pathType: Prefix
+        backend:
+          service:
+            name: order-service
             port:
               number: 8000
       - path: /api/payments
@@ -49,12 +56,5 @@ spec:
         backend:
           service:
             name: payment-service
-            port:
-              number: 8000
-      - path: /api/notifications
-        pathType: Prefix
-        backend:
-          service:
-            name: notification-service
             port:
               number: 8000

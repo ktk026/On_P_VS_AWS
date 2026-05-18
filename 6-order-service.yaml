@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: booking-service
+  name: order-service
   namespace: accommodation
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: booking-service
+      app: order-service
   template:
     metadata:
       labels:
-        app: booking-service
+        app: order-service
     spec:
       containers:
-      - name: booking-service
-        image: python:3.11.9-slim
+      - name: order-service
+        image: order-service:latest
         ports:
         - containerPort: 8000
         envFrom:
@@ -28,11 +28,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: booking-service
+  name: order-service
   namespace: accommodation
 spec:
   selector:
-    app: booking-service
+    app: order-service
   ports:
   - port: 8000
     targetPort: 8000
