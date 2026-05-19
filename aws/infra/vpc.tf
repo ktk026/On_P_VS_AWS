@@ -1,0 +1,86 @@
+data "aws_ami" "ubuntu_eks" {
+  filter {
+    name   = "name"
+    values = ["ubuntu-eks/k8s_1.32/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+  most_recent = true
+  owners      = ["099720109477"]
+}
+
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name = "app-vpc"
+  }
+}
+
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "app-igw"
+  }
+}
+
+resource "aws_subnet" "public_2a" {
+  vpc_id                  = aws_vpc.main.id
+  availability_zone       = "ap-northeast-2a"
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+  tags = {
+    Name                     = "public-subnet-2a"
+    "kubernetes.io/role/elb" = "1"
+  }
+}
+
+resource "aws_subnet" "public_2c" {
+  vpc_id                  = aws_vpc.main.id
+  availability_zone       = "ap-northeast-2c"
+  cidr_block              = "10.0.2.0/24"
+  map_public_ip_on_launch = true
+  tags = {
+    Name                     = "public-subnet-2c"
+    "kubernetes.io/role/elb" = "1"
+  }
+}
+
+resource "aws_subnet" "private_2a" {
+  vpc_id            = aws_vpc.main.id
+  availability_zone = "ap-northeast-2a"
+  cidr_block        = "10.0.3.0/24"
+  tags = {
+    Name                              = "private-subnet-2a"
+    "kubernetes.io/role/internal-elb" = "1"
+  }
+}
+
+resource "aws_subnet" "private_2c" {
+  vpc_id            = aws_vpc.main.id
+  availability_zone = "ap-northeast-2c"
+  cidr_block        = "10.0.4.0/24"
+  tags = {
+    Name                              = "private-subnet-2c"
+    "kubernetes.io/role/internal-elb" = "1"
+  }
+}
+
+resource "aws_subnet" "db_2a" {
+  vpc_id            = aws_vpc.main.id
+  availability_zone = "ap-northeast-2a"
+  cidr_block        = "10.0.5.0/24"
+  tags = {
+    Name = "db-subnet-2a"
+  }
+}
+
+resource "aws_subnet" "db_2c" {
+  vpc_id            = aws_vpc.main.id
+  availability_zone = "ap-northeast-2c"
+  cidr_block        = "10.0.6.0/24"
+  tags = {
+    Name = "db-subnet-2c"
+  }
+}
