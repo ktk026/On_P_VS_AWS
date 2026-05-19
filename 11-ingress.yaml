@@ -15,46 +15,11 @@ spec:
           service:
             name: frontend
             port:
-              number: 80
+              number: 3000
       - path: /api
         pathType: Prefix
         backend:
           service:
             name: api-gateway
             port:
-              number: 3000
-      - path: /api/users
-        pathType: Prefix
-        backend:
-          service:
-            name: user-service
-            port:
-              number: 8000
-      - path: /api/products
-        pathType: Prefix
-        backend:
-          service:
-            name: product-service
-            port:
-              number: 8000
-      - path: /api/inventory
-        pathType: Prefix
-        backend:
-          service:
-            name: inventory-service
-            port:
-              number: 8000
-      - path: /api/orders
-        pathType: Prefix
-        backend:
-          service:
-            name: order-service
-            port:
-              number: 8000
-      - path: /api/payments
-        pathType: Prefix
-        backend:
-          service:
-            name: payment-service
-            port:
-              number: 8000
+              number: 4000

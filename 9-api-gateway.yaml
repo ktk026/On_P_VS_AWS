@@ -15,9 +15,14 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: api-gateway:latest
+        image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-api:latest
         ports:
-        - containerPort: 3000
+        - containerPort: 4000
+        envFrom:
+        - configMapRef:
+            name: db-config
+        - secretRef:
+            name: db-secret
 
 ---
 apiVersion: v1
@@ -29,5 +34,5 @@ spec:
   selector:
     app: api-gateway
   ports:
-  - port: 3000
-    targetPort: 3000
+  - port: 4000
+    targetPort: 4000

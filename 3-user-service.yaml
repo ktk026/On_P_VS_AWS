@@ -15,9 +15,9 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: user-service:latest
+        image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-user:latest
         ports:
-        - containerPort: 8000
+        - containerPort: 4005
         envFrom:
         - configMapRef:
             name: db-config
@@ -34,5 +34,5 @@ spec:
   selector:
     app: user-service
   ports:
-  - port: 8000
-    targetPort: 8000
+  - port: 4005
+    targetPort: 4005

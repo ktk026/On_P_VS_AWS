@@ -15,9 +15,9 @@ spec:
     spec:
       containers:
       - name: order-service
-        image: order-service:latest
+        image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-order:latest
         ports:
-        - containerPort: 8000
+        - containerPort: 4003
         envFrom:
         - configMapRef:
             name: db-config
@@ -34,5 +34,5 @@ spec:
   selector:
     app: order-service
   ports:
-  - port: 8000
-    targetPort: 8000
+  - port: 4003
+    targetPort: 4003
