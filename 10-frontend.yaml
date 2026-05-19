@@ -13,11 +13,20 @@ spec:
       labels:
         app: frontend
     spec:
+      nodeSelector:
+        role: worker2
       containers:
       - name: frontend
         image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-frontend:latest
         ports:
         - containerPort: 3000
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
         envFrom:
         - configMapRef:
             name: db-config
