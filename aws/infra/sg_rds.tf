@@ -13,6 +13,9 @@ resource "aws_security_group_rule" "ingress_postgres_from_worker" {
   source_security_group_id = aws_security_group.eks_worker_sg.id
 }
 
+
+
+
 resource "aws_security_group_rule" "ingress_from_monitoring" {
   type                     = "ingress"
   security_group_id        = aws_security_group.rds_sg.id
@@ -20,4 +23,19 @@ resource "aws_security_group_rule" "ingress_from_monitoring" {
   to_port                  = 9187
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.monitoring_sg.id
+
+  description = "postgresql_exporter"
+
+}
+
+resource "aws_security_group_rule" "rds_ingress_monitoring_os" {
+  type                     = "ingress"
+  security_group_id        = aws_security_group.rds_sg.id
+  from_port                = 9100
+  to_port                  = 9100
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.monitoring_sg.id
+
+  description = "node_exporter"
+
 }

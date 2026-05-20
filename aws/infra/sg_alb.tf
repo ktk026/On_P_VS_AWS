@@ -5,14 +5,6 @@ resource "aws_security_group" "alb_sg" {
   tags = { Name = "app-alb-sg" }
 }
 
-resource "aws_security_group_rule" "ingress_http" {
-  type                     = "ingress"
-  security_group_id        = aws_security_group.alb_sg.id
-  from_port                = 80
-  to_port                  = 80
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.locust_sg.id
-}
 
 resource "aws_security_group_rule" "ingress_https" {
   type              = "ingress"
@@ -23,31 +15,30 @@ resource "aws_security_group_rule" "ingress_https" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
-resource "aws_security_group_rule" "egress_to_API" {
-  type                     = "egress"
+resource "aws_security_group_rule" "ingress_locust" {
+  type                     = "ingress"
   security_group_id        = aws_security_group.alb_sg.id
-  from_port                = 8080
-  to_port                  = 8080
+  from_port                = 80
+  to_port                  = 80
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_worker_sg.id
+  source_security_group_id = aws_security_group.locust_sg.id
 }
-resource "aws_security_group_rule" "egress_to_Front" {
-  type                     = "egress"
-  security_group_id        = aws_security_group.alb_sg.id
-  from_port                = 3000
-  to_port                  = 3000
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_worker_sg.id
+
+resource "aws_security_group_rule" "ingress_monitoring" {
+  type = "ingress"
+  security_group_id = aws_security_group.alb_sg.id
+  from_port = 9106    # CloudWatch 표준 포트
+  to_port = 9106
+  protocol = "tcp"
+  source_security_group_id = aws_security_group.monitoring_sg.id
 }
 
 
-# Health Check 막힐 경우
-#
-# resource "aws_security_group_rule" "alb_egress_all" {
-#   type              = "egress"
-#   security_group_id = aws_security_group.alb_sg.id
-#   from_port         = 0
-#   to_port           = 0
-#   protocol          = "-1"
-#   cidr_blocks       = ["0.0.0.0/0"]
-# }
+resource "aws_security_group_rule" "egress_alb_to_worker" {
+  type = "egress"
+  security_group_id = aws_security_group.alb_sg.id
+  from_port = 30000
+  to_port = 32767
+  protocol = "tcp"
+  source_security_group_id = aws_security_group.eks_worker_sg.id
+}

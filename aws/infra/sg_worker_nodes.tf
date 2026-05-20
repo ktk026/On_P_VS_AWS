@@ -21,7 +21,28 @@ resource "aws_security_group_rule" "ingress_worker_to_worker" {
   from_port                = 0
   to_port                  = 0
   protocol                 = "-1"
-  source_security_group_id = aws_security_group.eks_worker_sg.id
+  self = true
+}
+
+resource "aws_security_group_rule" "ingress_kubelet" {
+  type                     = "ingress"
+  security_group_id        = aws_security_group.eks_worker_sg.id
+  from_port                = 10250
+  to_port                  = 10250
+  protocol                 = "tcp"
+  self = true
+}
+
+
+
+
+resource "aws_security_group_rule" "ingress_alb_to_worker" {
+  type                     = "ingress"
+  security_group_id        = aws_security_group.eks_worker_sg.id
+  from_port                = 30000
+  to_port                  = 32767
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.alb_sg.id
 }
 
 
@@ -29,40 +50,20 @@ resource "aws_security_group_rule" "ingress_worker_to_worker" {
 
 
 
-resource "aws_security_group_rule" "ingress_alb_to_worker_API" {
+
+resource "aws_security_group_rule" "ingress_monitoring_api" {
   type                     = "ingress"
   security_group_id        = aws_security_group.eks_worker_sg.id
   from_port                = 8080
   to_port                  = 8080
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.alb_sg.id
-}
-resource "aws_security_group_rule" "ingress_alb_to_worker_Front" {
-  type                     = "ingress"
-  security_group_id        = aws_security_group.eks_worker_sg.id
-  from_port                = 3000
-  to_port                  = 3000
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.alb_sg.id
-}
-
-
-
-
-
-resource "aws_security_group_rule" "ingress_monitoring__Node_Exporter" {
-  type                     = "ingress"
-  security_group_id        = aws_security_group.eks_worker_sg.id
-  from_port                = 9100
-  to_port                  = 9100
-  protocol                 = "tcp"
   source_security_group_id = aws_security_group.monitoring_sg.id
 }
-resource "aws_security_group_rule" "ingress_monitoring__Prometheus" {
+resource "aws_security_group_rule" "ingress_monitoring_services" {
   type                     = "ingress"
   security_group_id        = aws_security_group.eks_worker_sg.id
-  from_port                = 8081
-  to_port                  = 8081
+  from_port                = 4001
+  to_port                  = 4005
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.monitoring_sg.id
 }

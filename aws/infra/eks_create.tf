@@ -25,24 +25,55 @@ resource "aws_eks_cluster" "eks" {
 
 
 
-resource "aws_eks_node_group" "app_node_group" {
-  cluster_name    = aws_eks_cluster.eks.name
-  node_group_name = "app-node-group"
-  node_role_arn   = aws_iam_role.worker_role.arn
-  subnet_ids      = [aws_subnet.private_2a.id, aws_subnet.private_2c.id]
+resource "aws_eks_node_group" "api_node_group" {
+  cluster_name = aws_eks_cluster.eks.name
+  node_group_name = "api-node-group"
+  node_role_arn = aws_iam_role.worker_role.arn
+  subnet_ids = [aws_subnet.private_2a.id]
 
   scaling_config {
-    desired_size = 3
+    desired_size = 1
+    max_size = 3
+    min_size = 1
+  }
+  update_config {
+    max_unavailable = 1
+  }
+
+  ami_type = "CUSTOM"
+  capacity_type = "ON_DEMAND"
+
+  launch_template {
+    id = aws_launch_template.eks_api_nodes_template.id
+    version = "$Latest"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.worker_policy,
+    aws_iam_role_policy_attachment.worker_cni,
+    aws_iam_role_policy_attachment.worker_ecr,
+  ]
+}
+
+resource "aws_eks_node_group" "service_node_group" {
+  cluster_name    = aws_eks_cluster.eks.name
+  node_group_name = "service-node-group"
+  node_role_arn   = aws_iam_role.worker_role.arn
+  subnet_ids      = [aws_subnet.private_2a.id]
+
+  scaling_config {
+    desired_size = 2
     max_size     = 5
     min_size     = 2
   }
+  
 
   ami_type      = "CUSTOM"
   capacity_type = "ON_DEMAND"
 
 
   launch_template {
-    id      = aws_launch_template.eks_nodes_template.id
+    id      = aws_launch_template.eks_service_nodes_template.id
     version = "$Latest"
   }
 

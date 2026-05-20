@@ -83,13 +83,42 @@ resource "aws_iam_role" "github_actions" {
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
-          StringEquals = {
-            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          }
-          StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:ktk026/On_P_VS_AWS:*"
-          }
+          StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com" }
+          StringLike = { "token.actions.githubusercontent.com:sub" = "repo:ktk026/On_P_VS_AWS:*" }
         }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "github_actions_policy" {
+  name        = "app-github-actions-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage"
+        ]
+        Resource = [for repo in aws_ecr_repository.services : repo.arn]
+      },
+      {
+      Effect = "Allow"
+        Action = ["eks:DescribeCluster"]
+        Resource = aws_eks_cluster.eks.arn
       }
     ]
   })
@@ -97,5 +126,5 @@ resource "aws_iam_role" "github_actions" {
 
 resource "aws_iam_role_policy_attachment" "github_actions_attach" {
   role       = aws_iam_role.github_actions.name
-  policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
+  policy_arn = aws_iam_policy.github_actions_policy.arn
 }
