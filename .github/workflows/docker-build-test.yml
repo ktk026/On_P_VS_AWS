@@ -30,6 +30,6 @@ jobs:
       #     docker build -t shoply-gateway:test ./app/msa_shoply/gateway
 
       
-            - name: Build gateway image
+      - name: Build gateway image
         run: |
           docker build -t shoply-gateway:test ./app/shoply/gateway
