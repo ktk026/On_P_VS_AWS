@@ -1,0 +1,39 @@
+name: Docker Build Test
+
+on:
+  push:
+    branches:
+      - cicd
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Show repository files
+        run: |
+          pwd
+          ls -la
+
+      - name: Check Docker version
+        run: docker --version
+
+      - name: Build gateway image
+        run: |
+          docker build -t shoply-gateway:test ./app/shoply/gateway
+
+      - name: Run gateway container
+        run: |
+          docker run -d --name gateway-test -p 4000:4000 shoply-gateway:test
+          docker ps
+
+      - name: Health check
+        run: |
+          sleep 5
+          curl -f http://localhost:4000/
