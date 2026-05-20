@@ -1,11 +1,27 @@
+<<<<<<< HEAD
 # Terraform
 .terraform/
 *.tfstate
 *.tfstate.*
+=======
+# =========================
+# Terraform
+# =========================
+
+# Local .terraform directories
+.terraform/
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Terraform variable files
+>>>>>>> develop
 *.tfvars
 *.tfvars.json
 .terraform.lock.hcl
 
+<<<<<<< HEAD
 # Python
 __pycache__/
 *.pyc
@@ -36,3 +52,62 @@ node_modules/
 # Temporary
 tmp/
 temp/
+=======
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform lock info
+.terraform.tfstate.lock.info
+
+# Terraform CLI config
+.terraformrc
+terraform.rc
+
+# Crash logs
+crash.log
+crash.*.log
+
+# =========================
+# Python
+# =========================
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# =========================
+# Environment
+# =========================
+
+.env
+.env.*
+
+# =========================
+# VSCode
+# =========================
+
+.vscode/
+
+# =========================
+# Node.js
+# =========================
+
+node_modules/
+
+# =========================
+# Logs
+# =========================
+
+*.log
+
+# =========================
+# OS files
+# =========================
+
+.DS_Store
+Thumbs.db
+>>>>>>> develop
