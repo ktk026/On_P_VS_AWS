@@ -4,6 +4,8 @@ resource "aws_launch_template" "eks_api_nodes_template" {
   instance_type          = "t3.medium"
   vpc_security_group_ids = [aws_security_group.eks_worker_sg.id]
 
+  key_name = "key"
+
   user_data = base64encode(<<-EOT
     #!/bin/bash
     set -ex
@@ -30,6 +32,8 @@ resource "aws_launch_template" "eks_service_nodes_template" {
   image_id               = data.aws_ami.ubuntu_eks.id
   instance_type          = "t3.medium"
   vpc_security_group_ids = [aws_security_group.eks_worker_sg.id]
+
+  key_name = "key"
 
   user_data = base64encode(<<-EOT
     #!/bin/bash

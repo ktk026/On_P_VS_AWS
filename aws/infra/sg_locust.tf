@@ -21,5 +21,5 @@ resource "aws_security_group_rule" "egress_all_locust" {
   from_port         = 80
   to_port           = 80
   protocol          = "tcp"
-  source_security_group_id = aws_security_group.alb_sg.id
+  source_security_group_id = aws_security_group.eks_worker_sg.id
 }

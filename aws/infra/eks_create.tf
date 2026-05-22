@@ -5,8 +5,6 @@ resource "aws_eks_cluster" "eks" {
 
   vpc_config {
     subnet_ids = [
-      aws_subnet.private_2a.id,
-      aws_subnet.private_2c.id,
       aws_subnet.public_2a.id,
       aws_subnet.public_2c.id
     ]
@@ -29,7 +27,7 @@ resource "aws_eks_node_group" "api_node_group" {
   cluster_name = aws_eks_cluster.eks.name
   node_group_name = "api-node-group"
   node_role_arn = aws_iam_role.worker_role.arn
-  subnet_ids = [aws_subnet.private_2a.id]
+  subnet_ids = [aws_subnet.public_2a.id]
 
   scaling_config {
     desired_size = 1
@@ -48,6 +46,10 @@ resource "aws_eks_node_group" "api_node_group" {
     version = "$Latest"
   }
 
+  labels = {
+    role = "api"
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.worker_policy,
     aws_iam_role_policy_attachment.worker_cni,
@@ -59,7 +61,7 @@ resource "aws_eks_node_group" "service_node_group" {
   cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "service-node-group"
   node_role_arn   = aws_iam_role.worker_role.arn
-  subnet_ids      = [aws_subnet.private_2a.id]
+  subnet_ids      = [aws_subnet.public_2a.id]
 
   scaling_config {
     desired_size = 2
@@ -76,6 +78,11 @@ resource "aws_eks_node_group" "service_node_group" {
     id      = aws_launch_template.eks_service_nodes_template.id
     version = "$Latest"
   }
+
+  labels = {
+    role = "service"
+  }
+
 
   depends_on = [
     aws_iam_role_policy_attachment.worker_policy,

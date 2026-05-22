@@ -47,25 +47,7 @@ resource "aws_subnet" "public_2c" {
   }
 }
 
-resource "aws_subnet" "private_2a" {
-  vpc_id            = aws_vpc.main.id
-  availability_zone = "ap-northeast-2a"
-  cidr_block        = "10.0.3.0/24"
-  tags = {
-    Name                              = "private-subnet-2a"
-    "kubernetes.io/role/internal-elb" = "1"
-  }
-}
 
-resource "aws_subnet" "private_2c" {
-  vpc_id            = aws_vpc.main.id
-  availability_zone = "ap-northeast-2c"
-  cidr_block        = "10.0.4.0/24"
-  tags = {
-    Name                              = "private-subnet-2c"
-    "kubernetes.io/role/internal-elb" = "1"
-  }
-}
 
 resource "aws_subnet" "db_2a" {
   vpc_id            = aws_vpc.main.id
