@@ -3,13 +3,13 @@ name: Docker Build Test
 on:
   push:
     branches:
-      - cicd
+      - develop
   pull_request:
     branches:
       - develop
 
 jobs:
-  check:
+  build-test-and-push:
     runs-on: ubuntu-latest
 
     permissions:
@@ -26,7 +26,9 @@ jobs:
           ls -la
 
       - name: Check Docker version
-        run: docker --version
+        run: |
+          docker --version
+          docker compose version
 
       - name: Build gateway image
         run: |
@@ -43,10 +45,12 @@ jobs:
           curl -f http://localhost:4000/health
 
       - name: Login to GHCR
+        if: github.event_name == 'push'
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Tag and push image to GHCR
+        if: github.event_name == 'push'
         run: |
-          docker tag shoply-gateway:test ghcr.io/${{ github.repository_owner }}/shoply-gateway:cicd-test
-          docker push ghcr.io/${{ github.repository_owner }}/shoply-gateway:cicd-test
+          docker tag shoply-gateway:test ghcr.io/${{ github.repository_owner }}/shoply-gateway:develop
+          docker push ghcr.io/${{ github.repository_owner }}/shoply-gateway:develop
