@@ -12,6 +12,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -37,24 +41,12 @@ jobs:
         run: |
           sleep 5
           curl -f http://localhost:4000/health
-          
-      # GitHub Secrets에 등록한 AWS 키와 리전 사용
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}   
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Tag and push image to ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: shoply-gateway
-          IMAGE_TAG: cicd-test
+      - name: Login to GHCR
         run: |
-          docker tag shoply-gateway:test $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Tag and push image to GHCR
+        run: |
+          docker tag shoply-gateway:test ghcr.io/${{ github.repository_owner }}/shoply-gateway:cicd-test
+          docker push ghcr.io/${{ github.repository_owner }}/shoply-gateway:cicd-test
