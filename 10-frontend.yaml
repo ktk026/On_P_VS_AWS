@@ -14,7 +14,7 @@ spec:
         app: frontend
     spec:
       nodeSelector:
-        role: worker2
+        role: service
       containers:
       - name: frontend
         image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-frontend:latest

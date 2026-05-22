@@ -14,7 +14,7 @@ spec:
         app: api-gateway
     spec:
       nodeSelector:
-        role: worker1
+        role: api
       containers:
       - name: api-gateway
         image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-api:latest

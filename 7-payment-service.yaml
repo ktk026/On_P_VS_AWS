@@ -14,7 +14,7 @@ spec:
         app: payment-service
     spec:
       nodeSelector:
-        role: worker2
+        role: service
       containers:
       - name: payment-service
         image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-payment:latest
