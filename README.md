@@ -26,4 +26,4 @@ ON_P_VS_AWS/
 ├─ on-pre/       # 온프레미스 환경 구성
 ├─ aws/          # AWS EKS 환경 구성
 ├─ cicd/         # CI/CD 관련 구성
-└─ docs/         # 문서
+└─ docs/         # 문서GHCR test
