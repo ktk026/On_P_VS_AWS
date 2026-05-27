@@ -17,9 +17,9 @@ spec:
         role: service
       containers:
       - name: frontend
-        image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-frontend:latest
+        image: ghcr.io/ktk026/shoply-frontend:develop
         ports:
-        - containerPort: 3000
+        - containerPort: 8080  # GHCR 이미지 기준 8080 (CI/CD팀 확인 후 3000이면 변경)
         resources:
           requests:
             cpu: "250m"
@@ -41,5 +41,5 @@ spec:
   selector:
     app: frontend
   ports:
-  - port: 3000
-    targetPort: 3000
+  - port: 80
+    targetPort: 8080

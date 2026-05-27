@@ -17,7 +17,7 @@ spec:
         role: api
       containers:
       - name: api-gateway
-        image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-api:latest
+        image: ghcr.io/ktk026/shoply-gateway:develop
         ports:
         - containerPort: 4000
         resources:

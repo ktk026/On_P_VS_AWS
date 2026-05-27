@@ -17,7 +17,7 @@ spec:
         role: api
       containers:
       - name: inventory-service
-        image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-inventory:latest
+        image: ghcr.io/ktk026/shoply-inventory:develop
         ports:
         - containerPort: 4002
         resources:
