@@ -18,24 +18,24 @@ resource "aws_security_group_rule" "ingress_redis_from_worker" {
 
 
 resource "aws_security_group_rule" "ingress_redis_monitoring" {
-  type                     = "ingress"
-  security_group_id        = aws_security_group.redis_sg.id
-  from_port                = 9121
-  to_port                  = 9121
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.monitoring_sg.id
+  type              = "ingress"
+  security_group_id = aws_security_group.redis_sg.id
+  from_port         = 9121
+  to_port           = 9121
+  protocol          = "tcp"
+  cidr_blocks       = var.monitoring_server_ips
 
   description = "redis_exporter"
 
 }
 
 resource "aws_security_group_rule" "redis_ingress_monitoring_os" {
-  type                     = "ingress"
-  security_group_id        = aws_security_group.redis_sg.id
-  from_port                = 9100
-  to_port                  = 9100
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.monitoring_sg.id
+  type              = "ingress"
+  security_group_id = aws_security_group.redis_sg.id
+  from_port         = 9100
+  to_port           = 9100
+  protocol          = "tcp"
+  cidr_blocks       = var.monitoring_server_ips
 
   description = "node_exporter"
 

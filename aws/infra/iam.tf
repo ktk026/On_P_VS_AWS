@@ -35,7 +35,7 @@ resource "aws_iam_role" "worker_role" {
       {
         Effect = "Allow"
         Principal = {
-          Service = "ec2.amazonaws.com"
+          Service = ["ec2.amazonaws.com", "eks.amazonaws.com"]
         }
         Action = "sts:AssumeRole"
       }
@@ -58,6 +58,15 @@ resource "aws_iam_role_policy_attachment" "worker_ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+resource "aws_iam_role_policy_attachment" "worker_cloudwatch_agent" {
+  role       = aws_iam_role.worker_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
+resource "aws_iam_instance_profile" "worker_profile" {
+  name = "app-eks-worker-profile"
+  role = aws_iam_role.worker_role.name
+}
 
 
 
@@ -84,7 +93,7 @@ resource "aws_iam_role" "github_actions" {
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
           StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com" }
-          StringLike = { "token.actions.githubusercontent.com:sub" = "repo:ktk026/On_P_VS_AWS:*" }
+          StringLike   = { "token.actions.githubusercontent.com:sub" = "repo:ktk026/On_P_VS_AWS:*" }
         }
       }
     ]
@@ -92,7 +101,7 @@ resource "aws_iam_role" "github_actions" {
 }
 
 resource "aws_iam_policy" "github_actions_policy" {
-  name        = "app-github-actions-policy"
+  name = "app-github-actions-policy"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -116,8 +125,8 @@ resource "aws_iam_policy" "github_actions_policy" {
         Resource = [for repo in aws_ecr_repository.services : repo.arn]
       },
       {
-      Effect = "Allow"
-        Action = ["eks:DescribeCluster"]
+        Effect   = "Allow"
+        Action   = ["eks:DescribeCluster"]
         Resource = aws_eks_cluster.eks.arn
       }
     ]

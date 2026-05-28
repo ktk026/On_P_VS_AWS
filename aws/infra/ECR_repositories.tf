@@ -8,5 +8,6 @@ resource "aws_ecr_repository" "services" {
     "app-payment",
     "app-user"
   ])
-  name = each.key
+  name         = each.key
+  force_delete = true
 }

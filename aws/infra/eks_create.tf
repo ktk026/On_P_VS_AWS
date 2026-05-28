@@ -1,7 +1,7 @@
 resource "aws_eks_cluster" "eks" {
   name     = var.cluster_name
   role_arn = aws_iam_role.cluster_role.arn
-  version  = "1.32"
+  version  = var.k8s_version
 
   vpc_config {
     subnet_ids = [
@@ -24,36 +24,33 @@ resource "aws_eks_cluster" "eks" {
 
 
 resource "aws_eks_node_group" "api_node_group" {
-  cluster_name = aws_eks_cluster.eks.name
+  cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "api-node-group"
-  node_role_arn = aws_iam_role.worker_role.arn
-  subnet_ids = [aws_subnet.public_2a.id]
+  node_role_arn   = aws_iam_role.worker_role.arn
+  subnet_ids      = [aws_subnet.public_2a.id]
+
+  capacity_type = "ON_DEMAND"
 
   scaling_config {
     desired_size = 1
-    max_size = 3
-    min_size = 1
-  }
-  update_config {
-    max_unavailable = 1
-  }
-
-  ami_type = "CUSTOM"
-  capacity_type = "ON_DEMAND"
-
-  launch_template {
-    id = aws_launch_template.eks_api_nodes_template.id
-    version = "$Latest"
+    max_size     = 3
+    min_size     = 1
   }
 
   labels = {
     role = "api"
   }
 
+  launch_template {
+    id      = aws_launch_template.eks_api_nodes_template.id
+    version = aws_launch_template.eks_api_nodes_template.latest_version
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.worker_policy,
     aws_iam_role_policy_attachment.worker_cni,
     aws_iam_role_policy_attachment.worker_ecr,
+    aws_iam_role_policy_attachment.worker_cloudwatch_agent,
   ]
 }
 
@@ -68,26 +65,23 @@ resource "aws_eks_node_group" "service_node_group" {
     max_size     = 5
     min_size     = 2
   }
-  
 
-  ami_type      = "CUSTOM"
   capacity_type = "ON_DEMAND"
-
-
-  launch_template {
-    id      = aws_launch_template.eks_service_nodes_template.id
-    version = "$Latest"
-  }
 
   labels = {
     role = "service"
   }
 
+  launch_template {
+    id      = aws_launch_template.eks_service_nodes_template.id
+    version = aws_launch_template.eks_service_nodes_template.latest_version
+  }
 
   depends_on = [
     aws_iam_role_policy_attachment.worker_policy,
     aws_iam_role_policy_attachment.worker_cni,
     aws_iam_role_policy_attachment.worker_ecr,
+    aws_iam_role_policy_attachment.worker_cloudwatch_agent,
   ]
 }
 

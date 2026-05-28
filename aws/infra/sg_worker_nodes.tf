@@ -16,33 +16,42 @@ resource "aws_security_group_rule" "worker_ingress_ssh" {
 }
 
 resource "aws_security_group_rule" "ingress_worker_to_worker" {
-  type                     = "ingress"
-  security_group_id        = aws_security_group.eks_worker_sg.id
-  from_port                = 0
-  to_port                  = 0
-  protocol                 = "-1"
-  self = true
+  type              = "ingress"
+  security_group_id = aws_security_group.eks_worker_sg.id
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  self              = true
 }
 
 resource "aws_security_group_rule" "ingress_kubelet" {
+  type              = "ingress"
+  security_group_id = aws_security_group.eks_worker_sg.id
+  from_port         = 10250
+  to_port           = 10250
+  protocol          = "tcp"
+  self              = true
+}
+
+resource "aws_security_group_rule" "ingress_worker_to_cluster" {
   type                     = "ingress"
-  security_group_id        = aws_security_group.eks_worker_sg.id
-  from_port                = 10250
-  to_port                  = 10250
+  security_group_id        = aws_eks_cluster.eks.vpc_config[0].cluster_security_group_id
+  from_port                = 443
+  to_port                  = 443
   protocol                 = "tcp"
-  self = true
+  source_security_group_id = aws_security_group.eks_worker_sg.id
 }
 
 
 
 
 resource "aws_security_group_rule" "ingress_public_to_worker" {
-  type                     = "ingress"
-  security_group_id        = aws_security_group.eks_worker_sg.id
-  from_port                = 30000
-  to_port                  = 32767
-  protocol                 = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
+  type              = "ingress"
+  security_group_id = aws_security_group.eks_worker_sg.id
+  from_port         = 30000
+  to_port           = 32767
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
 
@@ -52,20 +61,20 @@ resource "aws_security_group_rule" "ingress_public_to_worker" {
 
 
 resource "aws_security_group_rule" "ingress_monitoring_api" {
-  type                     = "ingress"
-  security_group_id        = aws_security_group.eks_worker_sg.id
-  from_port                = 8080
-  to_port                  = 8080
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.monitoring_sg.id
+  type              = "ingress"
+  security_group_id = aws_security_group.eks_worker_sg.id
+  from_port         = 8080
+  to_port           = 8080
+  protocol          = "tcp"
+  cidr_blocks       = var.monitoring_server_ips
 }
 resource "aws_security_group_rule" "ingress_monitoring_services" {
-  type                     = "ingress"
-  security_group_id        = aws_security_group.eks_worker_sg.id
-  from_port                = 4001
-  to_port                  = 4005
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.monitoring_sg.id
+  type              = "ingress"
+  security_group_id = aws_security_group.eks_worker_sg.id
+  from_port         = 4001
+  to_port           = 4005
+  protocol          = "tcp"
+  cidr_blocks       = var.monitoring_server_ips
 }
 resource "aws_security_group_rule" "ingress_locust" {
   type                     = "ingress"
@@ -77,12 +86,12 @@ resource "aws_security_group_rule" "ingress_locust" {
 }
 
 resource "aws_security_group_rule" "ingress_monitoring" {
-  type = "ingress"
+  type              = "ingress"
   security_group_id = aws_security_group.eks_worker_sg.id
-  from_port = 9106    # CloudWatch 표준 포트
-  to_port = 9106
-  protocol = "tcp"
-  source_security_group_id = aws_security_group.monitoring_sg.id
+  from_port         = 9106 # CloudWatch 표준 포트
+  to_port           = 9106
+  protocol          = "tcp"
+  cidr_blocks       = var.monitoring_server_ips
 }
 
 
