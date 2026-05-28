@@ -19,6 +19,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: api-gateway
+            name: gateway
             port:
               number: 4000

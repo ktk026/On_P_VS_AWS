@@ -17,7 +17,7 @@ spec:
         role: service
       containers:
       - name: user-service
-        image: ghcr.io/ktk026/shoply-user:develop
+        image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-user:latest
         ports:
         - containerPort: 4005
         resources:

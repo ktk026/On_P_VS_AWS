@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-gateway
+  name: gateway
   namespace: accommodation
 spec:
   replicas: 2
@@ -16,8 +16,8 @@ spec:
       nodeSelector:
         role: api
       containers:
-      - name: api-gateway
-        image: ghcr.io/ktk026/shoply-gateway:develop
+      - name: gateway
+        image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-api:latest
         ports:
         - containerPort: 4000
         resources:
@@ -37,7 +37,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: api-gateway
+  name: gateway
   namespace: accommodation
 spec:
   selector:
