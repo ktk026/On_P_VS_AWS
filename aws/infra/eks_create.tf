@@ -22,7 +22,6 @@ resource "aws_eks_cluster" "eks" {
 
 
 
-
 resource "aws_eks_node_group" "api_node_group" {
   cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "api-node-group"
@@ -111,9 +110,27 @@ resource "aws_eks_access_policy_association" "k8s_admin_binding" {
 }
 
 
-resource "aws_eks_addon" "vpc_cni" {
-  cluster_name                = aws_eks_cluster.eks.name
-  addon_name                  = "vpc-cni"
-  resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
+
+
+resource "aws_eks_access_entry" "karpenter_node" {
+  cluster_name  = aws_eks_cluster.eks.name
+  principal_arn = aws_iam_role.karpenter_node.arn
+  type          = "EC2_LINUX"
+
+  depends_on = [aws_iam_role_policy_attachment.karpenter_node_worker]
+}
+
+
+
+
+# aws eks update-kubeconfig --region ap-northeast-2 --name app-eks 명령어 입력 자동화
+resource "terraform_data" "update_kubeconfig" {
+  input = {
+    cluster_name = aws_eks_cluster.eks.name
+    region       = "ap-northeast-2"
+  }
+  provisioner "local-exec" {
+    command = "aws eks update-kubeconfig --region ${self.input.region} --name ${self.input.cluster_name}"
+  }
+  depends_on = [aws_eks_cluster.eks]
 }

@@ -2,7 +2,10 @@ resource "aws_security_group" "eks_worker_sg" {
   name   = "eks-worker-sg"
   vpc_id = aws_vpc.main.id
 
-  tags = { Name = "app-eks-worker-sg" }
+  tags = {
+    Name                     = "app-eks-worker-sg"
+    "karpenter.sh/discovery" = var.cluster_name
+  }
 }
 
 

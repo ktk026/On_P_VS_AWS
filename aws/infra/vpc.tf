@@ -37,6 +37,7 @@ resource "aws_subnet" "public_2a" {
   tags = {
     Name                     = "public-subnet-2a"
     "kubernetes.io/role/elb" = "1"
+    "karpenter.sh/discovery" = var.cluster_name
   }
 }
 
@@ -48,6 +49,7 @@ resource "aws_subnet" "public_2c" {
   tags = {
     Name                     = "public-subnet-2c"
     "kubernetes.io/role/elb" = "1"
+    # "karpenter.sh/discovery" = var.cluster_name
   }
 }
 

@@ -6,5 +6,20 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.13"
+    }
+
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.14"
+    }
+
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
