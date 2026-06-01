@@ -14,8 +14,6 @@ resource "aws_security_group_rule" "ingress_postgres_from_worker" {
 }
 
 
-
-
 resource "aws_security_group_rule" "ingress_from_monitoring" {
   type              = "ingress"
   security_group_id = aws_security_group.rds_sg.id
