@@ -2,6 +2,10 @@
 
 resource "aws_iam_group" "infra_group" {
   name = "infra_group"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 resource "aws_iam_group_policy" "infra_group_iam" {
   name = "infra_group"
@@ -14,11 +18,31 @@ resource "aws_iam_group_policy" "infra_group_iam" {
 
 resource "aws_iam_group" "k8s_group" {
   name = "k8s_group"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 resource "aws_iam_group_policy" "k8s_group_iam" {
   name   = "k8s_group"
   group  = aws_iam_group.k8s_group.name
   policy = file("k8s_group.json")
+}
+
+
+# cicd_group IAM
+
+resource "aws_iam_group" "cicd_group" {
+  name = "cicd_group"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+resource "aws_iam_group_policy" "cicd_group_iam" {
+  name   = "cicd_group"
+  group  = aws_iam_group.cicd_group.name
+  policy = file("cicd_group.json")
 }
 
 
