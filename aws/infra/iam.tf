@@ -1,3 +1,29 @@
+# infra_group IAM
+
+resource "aws_iam_group" "infra_group" {
+  name = "infra_group"
+}
+resource "aws_iam_group_policy" "infra_group_iam" {
+  name = "infra_group"
+  group = "aws_iam_group.infra_group.name"
+  policy = file("infra_group.json")
+}
+
+
+# k8s_group IAM
+
+resource "aws_iam_group" "k8s_group" {
+  name = "k8s_group"
+}
+resource "aws_iam_group_policy" "k8s_group_iam" {
+  name   = "k8s_group"
+  group  = aws_iam_group.k8s_group.name
+  policy = file("k8s_group.json")
+}
+
+
+
+
 # EKS Cluster IAM
 
 resource "aws_iam_role" "cluster_role" {

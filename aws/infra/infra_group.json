@@ -1,0 +1,23 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllCombinedPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "ecr:*",
+                "ec2:*",
+                "eks:*",
+                "rds:*",
+                "vpc:*",
+                "cloudformation:*",
+                "iam:*",
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:GetParametersByPath",
+                "elasticloadbalancing:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
