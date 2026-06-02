@@ -1,7 +1,38 @@
 global:
   scrape_interval: 5s
+  evaluation_interval: 5s
 
 scrape_configs:
   - job_name: prometheus
     static_configs:
-      - targets: ['prometheus:9090']
+      - targets: ['shoply-prometheus:9090']
+
+  - job_name: shoply-gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['msa_gateway:4000']
+
+  - job_name: shoply-user
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['msa_user:4005']
+
+  - job_name: shoply-product
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['msa_product:4001']
+
+  - job_name: shoply-inventory
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['msa_inventory:4002']
+
+  - job_name: shoply-order
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['msa_order:4003']
+
+  - job_name: shoply-payment
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['msa_payment:4004']

@@ -1,0 +1,65 @@
+services:
+  order-payment:
+    build:
+      context: .
+    image: shoply-k6-loadtest:ec2
+    container_name: shoply-k6-order-payment
+    environment:
+      SCENARIO: ${SCENARIO:-shoply-order-payment.js}
+      BASE_URL: ${BASE_URL:-http://3.37.248.237}
+      VUS: ${VUS:-100}
+      DURATION: ${DURATION:-5m}
+      SLEEP_SECONDS: ${SLEEP_SECONDS:-1}
+      TEST_RUN_ID: ${TEST_RUN_ID:-ec2-order-payment}
+      K6_OUTPUT: ${K6_OUTPUT:-experimental-prometheus-rw}
+      K6_PROMETHEUS_RW_SERVER_URL: ${K6_PROMETHEUS_RW_SERVER_URL:-http://3.36.26.83:9090/api/v1/write}
+    volumes:
+      - ./results/${TEST_RUN_ID:-ec2-order-payment}:/results
+
+  normal-flow:
+    image: shoply-k6-loadtest:ec2
+    build:
+      context: .
+    profiles:
+      - scenarios
+    environment:
+      SCENARIO: scenario-1-normal-flow.js
+      BASE_URL: ${BASE_URL:-http://3.37.248.237}
+      K6_OUTPUT: ${K6_OUTPUT:-experimental-prometheus-rw}
+      K6_PROMETHEUS_RW_SERVER_URL: ${K6_PROMETHEUS_RW_SERVER_URL:-http://3.36.26.83:9090/api/v1/write}
+
+  spike-order:
+    image: shoply-k6-loadtest:ec2
+    build:
+      context: .
+    profiles:
+      - scenarios
+    environment:
+      SCENARIO: scenario-2-spike-order.js
+      BASE_URL: ${BASE_URL:-http://3.37.248.237}
+      K6_OUTPUT: ${K6_OUTPUT:-experimental-prometheus-rw}
+      K6_PROMETHEUS_RW_SERVER_URL: ${K6_PROMETHEUS_RW_SERVER_URL:-http://3.36.26.83:9090/api/v1/write}
+
+  ramp-up:
+    image: shoply-k6-loadtest:ec2
+    build:
+      context: .
+    profiles:
+      - scenarios
+    environment:
+      SCENARIO: scenario-3-ramp-up.js
+      BASE_URL: ${BASE_URL:-http://3.37.248.237}
+      K6_OUTPUT: ${K6_OUTPUT:-experimental-prometheus-rw}
+      K6_PROMETHEUS_RW_SERVER_URL: ${K6_PROMETHEUS_RW_SERVER_URL:-http://3.36.26.83:9090/api/v1/write}
+
+  failure-recovery:
+    image: shoply-k6-loadtest:ec2
+    build:
+      context: .
+    profiles:
+      - scenarios
+    environment:
+      SCENARIO: scenario-4-failure-recovery.js
+      BASE_URL: ${BASE_URL:-http://3.37.248.237}
+      K6_OUTPUT: ${K6_OUTPUT:-experimental-prometheus-rw}
+      K6_PROMETHEUS_RW_SERVER_URL: ${K6_PROMETHEUS_RW_SERVER_URL:-http://3.36.26.83:9090/api/v1/write}

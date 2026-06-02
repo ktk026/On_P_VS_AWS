@@ -1,0 +1,83 @@
+name: shoply-loadtest-server
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: shoply-loadtest-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: shoply-loadtest-grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: shoply-loadtest-node-exporter
+    command:
+      - --path.rootfs=/host
+    pid: host
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    volumes:
+      - /:/host:ro
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: shoply-loadtest-cadvisor
+    privileged: true
+    ports:
+      - "${CADVISOR_PORT:-8080}:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    restart: unless-stopped
+
+  k6:
+    profiles:
+      - run
+    build:
+      context: ../k6
+    image: shoply-k6-loadtest:server
+    container_name: shoply-loadtest-k6
+    depends_on:
+      - prometheus
+    environment:
+      SCENARIO: ${SCENARIO:-shoply-order-payment.js}
+      BASE_URL: ${BASE_URL:-http://3.37.248.237}
+      VUS: ${VUS:-100}
+      DURATION: ${DURATION:-5m}
+      SLEEP_SECONDS: ${SLEEP_SECONDS:-1}
+      TEST_RUN_ID: ${TEST_RUN_ID:-server-order-payment}
+      K6_OUTPUT: ${K6_OUTPUT:-experimental-prometheus-rw}
+      K6_PROMETHEUS_RW_SERVER_URL: ${K6_PROMETHEUS_RW_SERVER_URL:-http://prometheus:9090/api/v1/write}
+    volumes:
+      - ../k6/results/server/${TEST_RUN_ID:-server-order-payment}:/results
+
+volumes:
+  prometheus-data:
+  grafana-data:

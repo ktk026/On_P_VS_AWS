@@ -1,0 +1,5 @@
+.env
+!.env.example
+.docker-config/
+release/*
+!release/.gitignore

@@ -97,6 +97,181 @@ k6 run scenario-1-normal-flow.js
 
 로컬 또는 EC2에서 Docker 기반으로 k6를 실행할 수 있다.
 
+## Shoply 주문/결제 전용 이미지 빌드
+
+```bash
+cd /Users/kyu/Projects/On_P_VS_AWS
+docker build -t shoply-k6-loadtest:local ./load-test/k6
+```
+
+## EC2 Docker Compose 실행
+
+`load-test/k6/docker-compose.yml`은 EC2에서 k6 부하테스트 이미지를 빌드하고 실행하기 위한 파일이다.
+
+기본값:
+
+| 항목 | 값 |
+|---|---|
+| 부하 타겟 | `http://3.37.248.237` |
+| Prometheus remote write | `http://3.36.26.83:9090/api/v1/write` |
+| 기본 시나리오 | `shoply-order-payment.js` |
+| 기본 VU | `100` |
+| 기본 시간 | `5m` |
+
+EC2에서 실행:
+
+```bash
+cd load-test/k6
+docker compose build
+TEST_RUN_ID=ec2-100vus-5m VUS=100 DURATION=5m docker compose run --rm order-payment
+```
+
+400명 테스트:
+
+```bash
+TEST_RUN_ID=ec2-400vus-5m VUS=400 DURATION=5m docker compose run --rm order-payment
+```
+
+450명 테스트:
+
+```bash
+TEST_RUN_ID=ec2-450vus-5m VUS=450 DURATION=5m docker compose run --rm order-payment
+```
+
+결과 저장 위치:
+
+```text
+load-test/k6/results/<TEST_RUN_ID>/
+├── summary.json
+└── summary.md
+```
+
+다른 시나리오를 실행하려면 `SCENARIO`를 바꿔도 된다.
+
+```bash
+TEST_RUN_ID=ec2-spike-order \
+SCENARIO=scenario-2-spike-order.js \
+docker compose run --rm order-payment
+```
+
+또는 compose에 정의된 시나리오 서비스를 직접 실행할 수 있다.
+
+```bash
+docker compose --profile scenarios run --rm spike-order
+docker compose --profile scenarios run --rm ramp-up
+docker compose --profile scenarios run --rm failure-recovery
+```
+
+타겟이나 모니터링 서버가 바뀌면 환경변수로 덮어쓴다.
+
+```bash
+BASE_URL=http://<TARGET-IP> \
+K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS-IP>:9090/api/v1/write \
+TEST_RUN_ID=ec2-custom-target \
+docker compose run --rm order-payment
+```
+
+## Shoply 주문/결제 부하테스트 실행
+
+로컬 Docker Compose 대상:
+
+```bash
+docker run --rm \
+  -e BASE_URL=http://host.docker.internal:4000 \
+  -e VUS=100 \
+  -e DURATION=5m \
+  shoply-k6-loadtest:local
+```
+
+Prometheus remote write까지 연결:
+
+```bash
+docker run --rm \
+  -e BASE_URL=http://host.docker.internal:4000 \
+  -e VUS=100 \
+  -e DURATION=5m \
+  -e K6_OUTPUT=experimental-prometheus-rw \
+  -e K6_PROMETHEUS_RW_SERVER_URL=http://host.docker.internal:9090/api/v1/write \
+  shoply-k6-loadtest:local
+```
+
+EC2에서 실행할 때는 `BASE_URL`만 대상 주소로 바꾼다.
+
+```bash
+docker run --rm \
+  -e BASE_URL=http://<SHOPLY-GATEWAY-OR-INGRESS> \
+  -e VUS=100 \
+  -e DURATION=5m \
+  -e K6_OUTPUT=experimental-prometheus-rw \
+  -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS-IP>:9090/api/v1/write \
+  shoply-k6-loadtest:local
+```
+
+## 로컬 실행 결과 저장
+
+주문/결제 전용 로컬 실행 스크립트는 매 실행 결과를 자동으로 저장한다.
+
+```bash
+load-test/k6/reset-local-experiment.sh
+VUS=100 DURATION=5m load-test/k6/run-local-order-payment.sh
+```
+
+결과 파일은 아래 경로에 생성된다.
+
+```text
+load-test/results/order-payment/<run-id>/
+├── summary.json
+└── summary.md
+```
+
+- `summary.json`: k6 원본 요약 데이터와 비교분석용 핵심 지표
+- `summary.md`: 보고서에 바로 붙이기 쉬운 요약 표
+
+실행 ID를 직접 지정하고 싶으면 `RUN_ID`를 사용한다.
+
+```bash
+RUN_ID=local-400vus-baseline \
+VUS=400 \
+DURATION=5m \
+load-test/k6/run-local-order-payment.sh
+```
+
+저장 위치를 바꾸고 싶으면 `RESULTS_ROOT` 또는 `RESULT_DIR`를 사용한다.
+
+```bash
+RESULTS_ROOT=/tmp/shoply-load-results \
+VUS=450 \
+DURATION=5m \
+load-test/k6/run-local-order-payment.sh
+```
+
+여러 실행 결과를 비교표로 합치려면 아래 명령을 실행한다.
+
+```bash
+node load-test/k6/collect-order-payment-results.mjs
+```
+
+생성 파일:
+
+```text
+load-test/results/order-payment/order-payment-summary.csv
+load-test/results/order-payment/order-payment-summary.md
+```
+
+한계점 탐색 예시:
+
+```bash
+# 기준점
+docker run --rm -e BASE_URL=http://<TARGET> -e VUS=100 -e DURATION=5m shoply-k6-loadtest:local
+
+# 비교점
+docker run --rm -e BASE_URL=http://<TARGET> -e VUS=400 -e DURATION=5m shoply-k6-loadtest:local
+
+# 이후 50명씩 증가
+docker run --rm -e BASE_URL=http://<TARGET> -e VUS=450 -e DURATION=5m shoply-k6-loadtest:local
+docker run --rm -e BASE_URL=http://<TARGET> -e VUS=500 -e DURATION=5m shoply-k6-loadtest:local
+```
+
 ## Docker 실행 예시
 
 ```bash
