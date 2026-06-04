@@ -27,6 +27,17 @@ spec:
           limits:
             cpu: "500m"
             memory: "512Mi"
+        env:
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: password
         envFrom:
         - configMapRef:
             name: db-config
