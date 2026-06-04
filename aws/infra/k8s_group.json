@@ -6,6 +6,7 @@
       "Action": [
         "ecr:*",
         "ec2:Describe*",
+        "ec2:AuthorizeSecurityGroupIngress",
         "eks:*",
         "rds:ModifyDBInstance",
         "rds:DescribeDBInstances",

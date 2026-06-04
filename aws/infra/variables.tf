@@ -28,3 +28,18 @@ variable "monitoring_server_ips" {
   type    = list(string)
   default = ["106.248.40.229/32"]
 }
+
+
+
+variable "ecr_repositories" {
+  type        = list(string)
+  default     = [
+    "app-frontend",
+    "app-api",
+    "app-product",
+    "app-inventory",
+    "app-order",
+    "app-payment",
+    "app-user"
+  ]
+}
