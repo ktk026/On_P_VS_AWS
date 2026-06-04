@@ -14,4 +14,8 @@ resource "helm_release" "nginx_ingress" {
         name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-type"
         value = "nlb"
     }
+
+    force_update      = true
+    dependency_update = true
+    depends_on        = [aws_eks_cluster.eks]
 }

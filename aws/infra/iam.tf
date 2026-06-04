@@ -9,7 +9,7 @@ resource "aws_iam_group" "infra_group" {
 }
 resource "aws_iam_group_policy" "infra_group_iam" {
   name = "infra_group"
-  group = "aws_iam_group.infra_group.name"
+  group = aws_iam_group.infra_group.name
   policy = file("infra_group.json")
 }
 
@@ -33,7 +33,7 @@ resource "aws_iam_group_policy" "k8s_group_iam" {
 # cicd_group IAM
 
 resource "aws_iam_group" "cicd_group" {
-  name = "cicd_group"
+  name = "CICD_group"
 
   lifecycle {
     prevent_destroy = true
