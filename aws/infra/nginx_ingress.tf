@@ -1,21 +1,24 @@
-resource "helm_release" "nginx_ingress" {
-    name             = "ingress-nginx"
-    repository       = "https://kubernetes.github.io/ingress-nginx"
-    chart            = "ingress-nginx"
-    namespace        = "ingress-nginx"
-    create_namespace = true
-    version          = "4.10.0"
+resource "terraform_data" "nginx_ingress" {
+  input = {
+    manifest_url = "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/aws/deploy.yaml"
+  }
 
-    set {
-        name  = "controller.service.type"
-        value = "LoadBalancer"
-    }
-    set {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-type"
-        value = "nlb"
-    }
+  provisioner "local-exec" {
+    command = "kubectl apply -f ${self.input.manifest_url}"
 
-    force_update      = true
-    dependency_update = true
-    depends_on        = [aws_eks_cluster.eks]
+    interpreter = ["C:\\Windows\\System32\\cmd.exe", "/C"]
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "kubectl delete -f ${self.input.manifest_url} --ignore-not-found=true --wait=false --timeout=60s || exit /b 0"
+
+    interpreter = ["C:\\Windows\\System32\\cmd.exe", "/C"]
+  }
+
+  depends_on = [
+    aws_eks_node_group.api_node_group,
+    aws_eks_node_group.service_node_group,
+    terraform_data.update_kubeconfig
+  ]
 }

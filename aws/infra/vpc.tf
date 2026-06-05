@@ -49,26 +49,6 @@ resource "aws_subnet" "public_2c" {
   tags = {
     Name                     = "public-subnet-2c"
     "kubernetes.io/role/elb" = "1"
-    # "karpenter.sh/discovery" = var.cluster_name
-  }
-}
-
-
-
-resource "aws_subnet" "db_2a" {
-  vpc_id            = aws_vpc.main.id
-  availability_zone = "ap-northeast-2a"
-  cidr_block        = "10.0.5.0/24"
-  tags = {
-    Name = "db-subnet-2a"
-  }
-}
-
-resource "aws_subnet" "db_2c" {
-  vpc_id            = aws_vpc.main.id
-  availability_zone = "ap-northeast-2c"
-  cidr_block        = "10.0.6.0/24"
-  tags = {
-    Name = "db-subnet-2c"
+    "karpenter.sh/discovery" = var.cluster_name
   }
 }

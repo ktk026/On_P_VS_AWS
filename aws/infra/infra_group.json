@@ -7,6 +7,7 @@
             "Action": [
                 "ecr:*",
                 "ec2:*",
+                "ecs:*",
                 "eks:*",
                 "rds:*",
                 "vpc:*",
@@ -15,9 +16,24 @@
                 "ssm:GetParameter",
                 "ssm:GetParameters",
                 "ssm:GetParametersByPath",
-                "elasticloadbalancing:*"
+                "elasticloadbalancing:*",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DetachNetworkInterface",
+                "ec2:DeleteNetworkInterface"
             ],
             "Resource": "*"
+        },
+        {
+            "Sid": "S3AccessPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::shoply-postgresql",
+                "arn:aws:s3:::shoply-postgresql/*"
+            ]
         }
     ]
 }

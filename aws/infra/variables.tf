@@ -32,8 +32,8 @@ variable "monitoring_server_ips" {
 
 
 variable "ecr_repositories" {
-  type        = list(string)
-  default     = [
+  type = list(string)
+  default = [
     "app-frontend",
     "app-api",
     "app-product",

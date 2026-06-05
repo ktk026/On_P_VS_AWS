@@ -1,48 +1,57 @@
-# infra_group IAM
-
-resource "aws_iam_group" "infra_group" {
-  name = "infra_group"
+removed {
+  from = aws_iam_group.infra_group
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
-resource "aws_iam_group_policy" "infra_group_iam" {
-  name = "infra_group"
-  group = aws_iam_group.infra_group.name
-  policy = file("infra_group.json")
-}
 
-
-# k8s_group IAM
-
-resource "aws_iam_group" "k8s_group" {
-  name = "k8s_group"
+removed {
+  from = aws_iam_group.k8s_group
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
-resource "aws_iam_group_policy" "k8s_group_iam" {
-  name   = "k8s_group"
-  group  = aws_iam_group.k8s_group.name
-  policy = file("k8s_group.json")
-}
 
-
-# cicd_group IAM
-
-resource "aws_iam_group" "cicd_group" {
-  name = "CICD_group"
+removed {
+  from = aws_iam_group.cicd_group
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
-resource "aws_iam_group_policy" "cicd_group_iam" {
-  name   = "cicd_group"
-  group  = aws_iam_group.cicd_group.name
-  policy = file("cicd_group.json")
+
+
+
+resource "terraform_data" "bootstrap_iam_policies" {
+  triggers_replace = {
+    infra_policy_hash = filesha256("${path.module}/infra_group.json")
+    k8s_policy_hash   = filesha256("${path.module}/k8s_group.json")
+    cicd_policy_hash  = filesha256("${path.module}/cicd_group.json")
+  }
+
+  input = {
+    infra_policy_hash = filesha256("${path.module}/infra_group.json")
+    k8s_policy_hash   = filesha256("${path.module}/k8s_group.json")
+    cicd_policy_hash  = filesha256("${path.module}/cicd_group.json")
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+    aws iam get-group --group-name infra_group >NUL 2>NUL || aws iam create-group --group-name infra_group
+    aws iam put-group-policy --group-name infra_group --policy-name infra_group --policy-document file://infra_group.json
+
+    aws iam get-group --group-name k8s_group >NUL 2>NUL || aws iam create-group --group-name k8s_group
+    aws iam put-group-policy --group-name k8s_group --policy-name k8s_group --policy-document file://k8s_group.json
+
+    aws iam get-group --group-name CICD_group >NUL 2>NUL || aws iam create-group --group-name CICD_group
+    aws iam put-group-policy --group-name CICD_group --policy-name cicd_group --policy-document file://cicd_group.json
+    EOT
+
+    interpreter = ["C:\\Windows\\System32\\cmd.exe", "/C"]
+    working_dir = path.module
+  }
 }
 
 

@@ -1,14 +1,27 @@
-resource "aws_ecr_repository" "services" {
-    for_each = toset(var.ecr_repositories)
-    name     = each.key
+removed {
+  from = aws_ecr_repository.services
 
-    lifecycle {
-        prevent_destroy = true
-    }
+  lifecycle {
+    destroy = false
+  }
 }
 
-import {
-    for_each = toset(var.ecr_repositories)
-    to       = aws_ecr_repository.services[each.key]
-    id       = each.key
+
+
+resource "kubernetes_namespace" "accommodation" {
+  metadata {
+    name = "accommodation"
+  }
+}
+
+resource "kubernetes_secret" "db_secret" {
+  metadata {
+    name      = "db-secret"
+    namespace = "accommodation"
+  }
+
+  data = {
+    username = var.db_username
+    password = var.db_password
+  }
 }
