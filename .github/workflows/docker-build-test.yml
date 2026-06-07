@@ -61,7 +61,7 @@ jobs:
       - name: Login to GHCR
         if: github.event_name == 'push'
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ktk026 --password-stdin
 
       - name: Tag and push image to GHCR
         if: github.event_name == 'push'
@@ -69,4 +69,3 @@ jobs:
           docker tag ${{ matrix.service.image }}:test ghcr.io/ktk026/${{ matrix.service.image }}:develop
           docker push ghcr.io/ktk026/${{ matrix.service.image }}:develop
 
-          
