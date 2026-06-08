@@ -17,8 +17,6 @@ resource "terraform_data" "nginx_ingress" {
   }
 
   depends_on = [
-    aws_eks_node_group.api_node_group,
-    aws_eks_node_group.service_node_group,
     terraform_data.update_kubeconfig
   ]
 }

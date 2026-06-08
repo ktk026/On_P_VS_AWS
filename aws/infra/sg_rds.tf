@@ -10,7 +10,7 @@ resource "aws_security_group_rule" "ingress_postgres_from_worker" {
   from_port                = 5432
   to_port                  = 5432
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_worker_sg.id
+  source_security_group_id = local.eks_cluster_security_group_id
 }
 
 resource "aws_security_group_rule" "ingress_postgres_from_rds_sg" {

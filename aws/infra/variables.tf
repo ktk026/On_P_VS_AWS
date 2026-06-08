@@ -8,7 +8,7 @@ variable "db_username" {
 
 variable "db_password" {
   sensitive = true
-  default   = "db_password"
+  default   = "postgres"
 }
 
 variable "my_ips" {

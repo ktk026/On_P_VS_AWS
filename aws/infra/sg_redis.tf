@@ -4,18 +4,14 @@ resource "aws_security_group" "redis_sg" {
   tags   = { Name = "app-redis-sg" }
 }
 
-
 resource "aws_security_group_rule" "ingress_redis_from_worker" {
   type                     = "ingress"
   security_group_id        = aws_security_group.redis_sg.id
   from_port                = 6379
   to_port                  = 6379
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_worker_sg.id
+  source_security_group_id = local.eks_cluster_security_group_id
 }
-
-
-
 
 resource "aws_security_group_rule" "ingress_redis_monitoring" {
   type              = "ingress"
@@ -26,7 +22,6 @@ resource "aws_security_group_rule" "ingress_redis_monitoring" {
   cidr_blocks       = var.monitoring_server_ips
 
   description = "redis_exporter"
-
 }
 
 resource "aws_security_group_rule" "redis_ingress_monitoring_os" {
@@ -38,12 +33,7 @@ resource "aws_security_group_rule" "redis_ingress_monitoring_os" {
   cidr_blocks       = var.monitoring_server_ips
 
   description = "node_exporter"
-
 }
-
-
-
-
 
 resource "aws_security_group_rule" "ingress_redis_ssh" {
   type              = "ingress"
@@ -54,15 +44,11 @@ resource "aws_security_group_rule" "ingress_redis_ssh" {
   cidr_blocks       = var.my_ips
 }
 
-
-
-
-# 인바운드로 들어온 요청은 아웃바운드 없이 나갈 수 있음
-# resource "aws_security_group_rule" "egress_all_redis" {
-#   type              = "egress"
-#   security_group_id = aws_security_group.redis_sg.id
-#   from_port         = 0
-#   to_port           = 0
-#   protocol          = "-1"
-#   cidr_blocks       = ["0.0.0.0/0"]
-# }
+resource "aws_security_group_rule" "egress_all_redis" {
+  type              = "egress"
+  security_group_id = aws_security_group.redis_sg.id
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
