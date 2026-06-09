@@ -13,13 +13,11 @@ spec:
       labels:
         app: frontend
     spec:
-      nodeSelector:
-        role: service
       containers:
       - name: frontend
         image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-frontend:latest
         ports:
-        - containerPort: 80  # GHCR 이미지 기준 8080 (CI/CD팀 확인 후 3000이면 변경)
+        - containerPort: 80
         resources:
           requests:
             cpu: "250m"
@@ -30,7 +28,6 @@ spec:
         envFrom:
         - configMapRef:
             name: db-config
-
 ---
 apiVersion: v1
 kind: Service

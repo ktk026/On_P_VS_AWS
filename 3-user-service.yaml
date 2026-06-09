@@ -13,8 +13,6 @@ spec:
       labels:
         app: user-service
     spec:
-      nodeSelector:
-        role: service
       containers:
       - name: user-service
         image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-user:latest
@@ -43,7 +41,6 @@ spec:
             name: db-config
         - secretRef:
             name: db-secret
-
 ---
 apiVersion: v1
 kind: Service

@@ -5,7 +5,6 @@ metadata:
   namespace: accommodation
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::367299441871:role/grafana-cloudwatch-role
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -23,7 +22,6 @@ data:
       jsonData:
         defaultRegion: ap-northeast-2
         authType: default
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -40,8 +38,6 @@ spec:
       labels:
         app: grafana
     spec:
-      nodeSelector:
-        role: service
       serviceAccountName: grafana-sa
       containers:
       - name: grafana
@@ -67,7 +63,6 @@ spec:
       - name: datasource
         configMap:
           name: grafana-datasource
-
 ---
 apiVersion: v1
 kind: Service

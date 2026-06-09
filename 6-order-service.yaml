@@ -13,8 +13,6 @@ spec:
       labels:
         app: order-service
     spec:
-      nodeSelector:
-        role: service
       containers:
       - name: order-service
         image: 367299441871.dkr.ecr.ap-northeast-2.amazonaws.com/app-order:latest
@@ -32,7 +30,6 @@ spec:
             name: db-config
         - secretRef:
             name: db-secret
-
 ---
 apiVersion: v1
 kind: Service
