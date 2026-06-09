@@ -1,22 +1,33 @@
-resource "terraform_data" "nginx_ingress" {
-  input = {
-    manifest_url = "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/aws/deploy.yaml"
+resource "kubernetes_service_v1" "nginx_service" {
+  metadata {
+    name      = "nginx-service"
+    namespace = kubernetes_namespace.accommodation.metadata[0].name
+
+    annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-type"   = "external"
+      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+      "service.beta.kubernetes.io/aws-load-balancer-subnets" = join(",", [
+        aws_subnet.public_2a.id,
+        aws_subnet.public_2c.id
+      ])
+      "service.beta.kubernetes.io/aws-load-balancer-security-groups" = aws_security_group.load_balancer_sg.id
+      "service.beta.kubernetes.io/aws-load-balancer-manage-backend-security-group-rules" = "true"
+    }
   }
 
-  provisioner "local-exec" {
-    command = "kubectl apply -f ${self.input.manifest_url}"
+  spec {
+    selector = {
+      app = "frontend"
+    }
 
-    interpreter = ["C:\\Windows\\System32\\cmd.exe", "/C"]
+    type = "LoadBalancer"
+
+    port {
+      port        = 80
+      target_port = 80
+    }
   }
 
-  provisioner "local-exec" {
-    when    = destroy
-    command = "kubectl delete -f ${self.input.manifest_url} --ignore-not-found=true --wait=false --timeout=60s || exit /b 0"
+  depends_on = [helm_release.load_balancer_controller]
 
-    interpreter = ["C:\\Windows\\System32\\cmd.exe", "/C"]
-  }
-
-  depends_on = [
-    terraform_data.update_kubeconfig
-  ]
 }
