@@ -1,0 +1,17 @@
+nodeExporter:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+
+
+grafana:
+  enabled: false
+
+  
+prometheus:
+  enabled: false
+
+alertmanager:
+  enabled: false

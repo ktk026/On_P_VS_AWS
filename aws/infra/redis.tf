@@ -6,6 +6,7 @@ resource "aws_network_interface" "redis_nic" {
 resource "aws_eip" "redis_eip" {
   network_interface = aws_network_interface.redis_nic.id
   vpc               = true
+  depends_on = [aws_network_interface.redis_nic]
 }
 
 resource "aws_instance" "redis" {
