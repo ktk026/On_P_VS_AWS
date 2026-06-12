@@ -11,24 +11,6 @@ resource "aws_eks_cluster" "eks" {
     ]
   }
 
-  compute_config {
-    enabled       = true
-    node_pools    = ["general-purpose", "system"]
-    node_role_arn = aws_iam_role.auto_mode_node_role.arn
-  }
-
-  kubernetes_network_config {
-    elastic_load_balancing {
-      enabled = true
-    }
-  }
-
-  storage_config {
-    block_storage {
-      enabled = true
-    }
-  }
-
   access_config {
     authentication_mode                         = "API"
     bootstrap_cluster_creator_admin_permissions = true
@@ -36,17 +18,109 @@ resource "aws_eks_cluster" "eks" {
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
-    aws_iam_role_policy_attachment.eks_compute_policy,
-    aws_iam_role_policy_attachment.eks_block_storage_policy,
-    aws_iam_role_policy_attachment.eks_load_balancing_policy,
-    aws_iam_role_policy_attachment.eks_networking_policy,
-    aws_iam_role_policy_attachment.auto_mode_node_worker_minimal,
-    aws_iam_role_policy_attachment.auto_mode_node_ecr_pull_only,
-    aws_route_table_association.public_2a,
-    aws_route_table_association.public_2c,
   ]
 }
 
+
+
+resource "aws_eks_node_group" "api_node_group" {
+  cluster_name    = aws_eks_cluster.eks.name
+  node_group_name = "api-node-group"
+  node_role_arn   = aws_iam_role.worker_role.arn
+  subnet_ids      = [aws_subnet.public_2a.id]
+
+  capacity_type = "ON_DEMAND"
+
+  scaling_config {
+    desired_size = 1
+    max_size     = 3
+    min_size     = 1
+  }
+
+  labels = {
+    role = "api"
+  }
+
+  launch_template {
+    id      = aws_launch_template.eks_api_nodes_template.id
+    version = aws_launch_template.eks_api_nodes_template.latest_version
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.worker_policy,
+    aws_iam_role_policy_attachment.worker_cni,
+    aws_iam_role_policy_attachment.worker_ecr,
+    aws_iam_role_policy_attachment.worker_cloudwatch_agent,
+  ]
+}
+
+
+
+resource "aws_eks_node_group" "service_node_group" {
+  cluster_name    = aws_eks_cluster.eks.name
+  node_group_name = "service-node-group"
+  node_role_arn   = aws_iam_role.worker_role.arn
+  subnet_ids      = [aws_subnet.public_2a.id]
+
+  scaling_config {
+    desired_size = 2
+    max_size     = 5
+    min_size     = 2
+  }
+
+  capacity_type = "ON_DEMAND"
+
+  labels = {
+    role = "service"
+  }
+
+  launch_template {
+    id      = aws_launch_template.eks_service_nodes_template.id
+    version = aws_launch_template.eks_service_nodes_template.latest_version
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.worker_policy,
+    aws_iam_role_policy_attachment.worker_cni,
+    aws_iam_role_policy_attachment.worker_ecr,
+    aws_iam_role_policy_attachment.worker_cloudwatch_agent,
+  ]
+}
+
+
+
+
+resource "aws_eks_node_group" "ops" {
+  cluster_name    = aws_eks_cluster.eks.name
+  node_group_name = "ops-node-group"
+  node_role_arn   = aws_iam_role.node_role.arn
+
+  subnet_ids = [
+    aws_subnet.public_2a.id,
+    aws_subnet.public_2c.id
+  ]
+
+  instance_types = ["t3.medium"]
+
+  scaling_config {
+    desired_size = 1
+    max_size     = 1
+    min_size     = 1
+  }
+
+  labels = {
+    role = "ops"
+  }
+
+  taint {
+    key    = "role"
+    value  = "ops"
+    effect = "NO_SCHEDULE"
+  }
+
+  depends_on = [aws_eks_cluster.eks, aws_iam_role_policy_attachment.node_worker, aws_iam_role_policy_attachment.node_cni, aws_iam_role_policy_attachment.node_ecr]
+
+}
 
 
 
