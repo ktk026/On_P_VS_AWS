@@ -10,7 +10,7 @@ resource "kubernetes_namespace" "ops" {
   }
 }
 
-resource "kubernetes_namespace" "ingress-nginx" {
+resource "kubernetes_namespace" "ingress_nginx" {
   metadata {
     name = "ingress-nginx"
   }

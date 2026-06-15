@@ -52,9 +52,8 @@ resource "terraform_data" "bootstrap_iam_policies" {
 
 
 
+# EKS Cluster IAM
 
-
-# EKS Auto Mode cluster IAM
 resource "aws_iam_role" "cluster_role" {
   name = "app-eks-cluster-role"
 
@@ -65,10 +64,7 @@ resource "aws_iam_role" "cluster_role" {
       Principal = {
         Service = "eks.amazonaws.com"
       }
-      Action = [
-        "sts:AssumeRole",
-        "sts:TagSession"
-      ]
+      Action = "sts:AssumeRole"
     }]
   })
 }
@@ -78,92 +74,45 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "eks_compute_policy" {
-  role       = aws_iam_role.cluster_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSComputePolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "eks_block_storage_policy" {
-  role       = aws_iam_role.cluster_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSBlockStoragePolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "eks_load_balancing_policy" {
-  role       = aws_iam_role.cluster_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSLoadBalancingPolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "eks_networking_policy" {
-  role       = aws_iam_role.cluster_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSNetworkingPolicy"
-}
 
 
-
-
-# EKS Auto Mode node IAM
-resource "aws_iam_role" "auto_mode_node_role" {
-  name = "app-eks-auto-node-role"
+# EKS Worker IAM
+resource "aws_iam_role" "worker_role" {
+  name = "app-eks-worker-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Service = "ec2.amazonaws.com"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = ["ec2.amazonaws.com", "eks.amazonaws.com"]
+        }
+        Action = "sts:AssumeRole"
       }
-      Action = "sts:AssumeRole"
-    }]
+    ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "auto_mode_node_worker_minimal" {
-  role       = aws_iam_role.auto_mode_node_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodeMinimalPolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "auto_mode_node_ecr_pull_only" {
-  role       = aws_iam_role.auto_mode_node_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
-}
-
-
-
-
-
-# EKS Node IAM
-resource "aws_iam_role" "node_role" {
-  name = "eks-node-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      }
-      Action = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "node_worker" {
-  role       = aws_iam_role.node_role.name
+resource "aws_iam_role_policy_attachment" "worker_policy" {
+  role       = aws_iam_role.worker_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "node_cni" {
-  role       = aws_iam_role.node_role.name
+resource "aws_iam_role_policy_attachment" "worker_cni" {
+  role       = aws_iam_role.worker_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-resource "aws_iam_role_policy_attachment" "node_ecr" {
-  role       = aws_iam_role.node_role.name
+resource "aws_iam_role_policy_attachment" "worker_ecr" {
+  role       = aws_iam_role.worker_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-
-
+resource "aws_iam_instance_profile" "worker_profile" {
+  name = "app-eks-worker-profile"
+  role = aws_iam_role.worker_role.name
+}
 
 
 

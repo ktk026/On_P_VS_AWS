@@ -79,19 +79,19 @@ resource "aws_security_group_rule" "ingress_monitoring_services" {
   protocol          = "tcp"
   cidr_blocks       = var.monitoring_server_ips
 }
-resource "aws_security_group_rule" "ingress_locust" {
+resource "aws_security_group_rule" "ingress_k6" {
   type                     = "ingress"
   security_group_id        = aws_security_group.eks_worker_sg.id
   from_port                = 80
   to_port                  = 80
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.locust_sg.id
+  source_security_group_id = aws_security_group.k6_sg.id
 }
 
 resource "aws_security_group_rule" "ingress_monitoring" {
   type              = "ingress"
   security_group_id = aws_security_group.eks_worker_sg.id
-  from_port         = 9106 # CloudWatch 표준 포트
+  from_port         = 9106
   to_port           = 9106
   protocol          = "tcp"
   cidr_blocks       = var.monitoring_server_ips

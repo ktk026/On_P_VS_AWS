@@ -10,7 +10,7 @@ resource "aws_security_group_rule" "ingress_redis_from_worker" {
   from_port                = 6379
   to_port                  = 6379
   protocol                 = "tcp"
-  source_security_group_id = local.eks_cluster_security_group_id
+  source_security_group_id = aws_security_group.eks_worker_sg.id
 }
 
 resource "aws_security_group_rule" "ingress_redis_monitoring" {

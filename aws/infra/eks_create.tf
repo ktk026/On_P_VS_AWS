@@ -49,8 +49,7 @@ resource "aws_eks_node_group" "api_node_group" {
   depends_on = [
     aws_iam_role_policy_attachment.worker_policy,
     aws_iam_role_policy_attachment.worker_cni,
-    aws_iam_role_policy_attachment.worker_ecr,
-    aws_iam_role_policy_attachment.worker_cloudwatch_agent,
+    aws_iam_role_policy_attachment.worker_ecr
   ]
 }
 
@@ -82,8 +81,7 @@ resource "aws_eks_node_group" "service_node_group" {
   depends_on = [
     aws_iam_role_policy_attachment.worker_policy,
     aws_iam_role_policy_attachment.worker_cni,
-    aws_iam_role_policy_attachment.worker_ecr,
-    aws_iam_role_policy_attachment.worker_cloudwatch_agent,
+    aws_iam_role_policy_attachment.worker_ecr
   ]
 }
 
@@ -93,7 +91,7 @@ resource "aws_eks_node_group" "service_node_group" {
 resource "aws_eks_node_group" "ops" {
   cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "ops-node-group"
-  node_role_arn   = aws_iam_role.node_role.arn
+  node_role_arn   = aws_iam_role.worker_role.arn
 
   subnet_ids = [
     aws_subnet.public_2a.id,
@@ -118,7 +116,7 @@ resource "aws_eks_node_group" "ops" {
     effect = "NO_SCHEDULE"
   }
 
-  depends_on = [aws_eks_cluster.eks, aws_iam_role_policy_attachment.node_worker, aws_iam_role_policy_attachment.node_cni, aws_iam_role_policy_attachment.node_ecr]
+  depends_on = [aws_eks_cluster.eks, aws_iam_role_policy_attachment.worker_policy, aws_iam_role_policy_attachment.worker_cni, aws_iam_role_policy_attachment.worker_ecr]
 
 }
 

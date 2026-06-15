@@ -23,5 +23,5 @@ resource "aws_security_group_rule" "load_balancer_egress_all" {
   from_port         = 0
   to_port           = 0
   protocol          = "-1"
-  source_security_group_id = local.eks_cluster_security_group_id
+  source_security_group_id = aws_security_group.eks_worker_sg.id
 }

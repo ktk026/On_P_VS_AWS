@@ -7,6 +7,8 @@ resource "null_resource" "helm_repo_update" {
     command = <<EOT
       helm repo add aws-load-balancer-controller https://aws.github.io/eks-charts || true
       helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
+      helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx || true
+      helm repo add bitnami https://charts.bitnami.com/bitnami || true
       helm repo update
     EOT
   }
@@ -17,11 +19,13 @@ resource "helm_release" "ingress_nginx" {
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
   namespace  = "ingress-nginx"
-  version    = "5.7.1"
+  version    = "4.15.1"
 
   values = [
     <<EOF
     controller:
+      image:
+        tag: "v1.11.3"
       service:
         type: LoadBalancer
         annotations:
@@ -41,30 +45,9 @@ resource "helm_release" "ingress_nginx" {
     EOF
   ]
 
-  depends_on = [aws_eks_node_group.ops, kubernetes_namespace.ingress_nginx]
+  depends_on = [aws_eks_addon.vpc_cni, kubernetes_namespace.ingress_nginx]
 }
 
-
-
-resource "helm_release" "metrics_server" {
-  name       = "metrics-server"
-  repository = "https://kubernetes-sigs.github.io/metrics-server/"
-  chart      = "metrics-server"
-  namespace  = "kube-system"
-  version    = "3.12.1"
-
-  set {
-    name  = "args[0]"
-    value = "--kubelet-insecure-tls"
-  }
-
-  set {
-    name  = "args[1]"
-    value = "--kubelet-preferred-address-types=InternalIP"
-  }
-
-  depends_on = [null_resource.helm_repo_update, kubernetes_namespace.ops, aws_eks_node_group.api_node_group, aws_eks_node_group.service_node_group]
-}
 
 
 
@@ -78,7 +61,7 @@ resource "helm_release" "monitoring_exporters" {
     "${file("${path.module}/values.yaml")}"
   ]
 
-  depends_on = [kubernetes_namespace.ops, null_resource.helm_repo_update, aws_eks_node_group.ops]
+  depends_on = [aws_eks_node_group.ops, aws_eks_addon.vpc_cni, kubernetes_namespace.ops]
   
 }
 
@@ -108,4 +91,32 @@ resource "helm_release" "karpenter" {
     aws_eks_access_entry.karpenter_node,
     aws_iam_role_policy_attachment.karpenter_controller
   ]
+}
+
+
+resource "helm_release" "event_exporter" {
+  name      = "event-exporter"
+  chart     = "bitnami/kubernetes-event-exporter"
+  version   = "3.6.3"
+  namespace = "ops"
+
+  values = [
+    <<EOF
+image:
+  registry: docker.io
+  repository: bitnamilegacy/kubernetes-event-exporter
+  tag: 1.7.0-debian-12-r46
+
+nodeSelector:
+  role: ops
+
+tolerations:
+  - key: "role"
+    operator: "Equal"
+    value: "ops"
+    effect: "NoSchedule"
+EOF
+  ]
+
+  depends_on = [kubernetes_namespace.ops, aws_eks_node_group.ops]
 }
