@@ -9,7 +9,7 @@ metadata:
     alb.ingress.kubernetes.io/target-type: "ip"
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
   name: accommodation-ingress
-  namespace: accommodation
+  namespace: shoply
 spec:
   rules:
   - http:

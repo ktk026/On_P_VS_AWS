@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: product-service
-  namespace: accommodation
+  namespace: shoply
 spec:
   replicas: 2
   selector:
@@ -35,7 +35,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: product-service
-  namespace: accommodation
+  namespace: shoply
 spec:
   selector:
     app: product-service
