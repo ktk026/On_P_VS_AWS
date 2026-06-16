@@ -8,8 +8,18 @@ resource "aws_security_group" "k6_sg" {
 resource "aws_security_group_rule" "egress_all_k6" {
   type                     = "egress"
   security_group_id        = aws_security_group.k6_sg.id
-  from_port                = 80
-  to_port                  = 80
-  protocol                 = "tcp"
+  from_port                = 0
+  to_port                  = 0
+  protocol                 = "-1"
   source_security_group_id = aws_security_group.eks_worker_sg.id
+}
+
+
+resource "aws_security_group_rule" "ingress_ssh" {
+  type              = "ingress"
+  security_group_id = aws_security_group.k6_sg.id
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
 }

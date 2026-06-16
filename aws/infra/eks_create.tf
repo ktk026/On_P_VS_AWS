@@ -32,9 +32,9 @@ resource "aws_eks_node_group" "api_node_group" {
   capacity_type = "ON_DEMAND"
 
   scaling_config {
-    desired_size = 1
-    max_size     = 3
-    min_size     = 1
+    desired_size = 2
+    max_size     = 4
+    min_size     = 2
   }
 
   labels = {
@@ -63,7 +63,7 @@ resource "aws_eks_node_group" "service_node_group" {
 
   scaling_config {
     desired_size = 2
-    max_size     = 5
+    max_size     = 4
     min_size     = 2
   }
 
@@ -92,13 +92,7 @@ resource "aws_eks_node_group" "ops" {
   cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "ops-node-group"
   node_role_arn   = aws_iam_role.worker_role.arn
-
-  subnet_ids = [
-    aws_subnet.public_2a.id,
-    aws_subnet.public_2c.id
-  ]
-
-  instance_types = ["t3.medium"]
+  subnet_ids = [aws_subnet.public_2a.id]
 
   scaling_config {
     desired_size = 1
@@ -108,6 +102,11 @@ resource "aws_eks_node_group" "ops" {
 
   labels = {
     role = "ops"
+  }
+
+  launch_template {
+    id      = aws_launch_template.eks_ops_nodes_template.id
+    version = aws_launch_template.eks_ops_nodes_template.latest_version
   }
 
   taint {
