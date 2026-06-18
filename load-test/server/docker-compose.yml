@@ -68,10 +68,13 @@ services:
       - prometheus
     environment:
       SCENARIO: ${SCENARIO:-shoply-order-payment.js}
-      BASE_URL: ${BASE_URL:-http://3.37.248.237}
+      BASE_URL: ${BASE_URL:-http://54.180.167.159}
       VUS: ${VUS:-100}
       DURATION: ${DURATION:-5m}
       SLEEP_SECONDS: ${SLEEP_SECONDS:-1}
+      LOAD_PROFILE: ${LOAD_PROFILE:-ramp}
+      ACCOUNT_COUNT: ${ACCOUNT_COUNT:-2000}
+      TEST_PASSWORD: ${TEST_PASSWORD:-Test1234!}
       TEST_RUN_ID: ${TEST_RUN_ID:-server-order-payment}
       K6_OUTPUT: ${K6_OUTPUT:-experimental-prometheus-rw}
       K6_PROMETHEUS_RW_SERVER_URL: ${K6_PROMETHEUS_RW_SERVER_URL:-http://prometheus:9090/api/v1/write}

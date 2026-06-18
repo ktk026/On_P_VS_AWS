@@ -1,29 +1,81 @@
-# ON_P_VS_AWS
+# Shoply MSA
 
-온프레미스 vs AWS 기반 하이브리드 클라우드 확장 플랫폼
+Shoply는 온프레미스 Kubernetes와 AWS EKS 비교 실험에 사용하는 MSA 쇼핑몰 애플리케이션이다. 상품 조회, 재고 예약, 주문 생성, 결제 처리, 로그인 흐름을 분리된 서비스로 구성한다.
 
-## 프로젝트 소개
+## 서비스 구성
 
-온프레미스 환경에서 운영되는 서비스를 Kubernetes 기반으로 구성하고, 트래픽 증가 상황에서 AWS EKS 환경과 비교하여 확장성, 운영성, 모니터링 차이를 분석하는 프로젝트입니다.
+| 서비스 | 포트 | 역할 |
+|---|---:|---|
+| frontend | 3000 | 사용자 화면 |
+| gateway | 4000 | API Gateway, 서비스 라우팅 |
+| product | 4001 | 상품 목록/상세, 타임세일 |
+| inventory | 4002 | 재고 조회, 예약, 차감, 해제 |
+| order | 4003 | 주문 생성, 주문 상태 |
+| payment | 4004 | Mock 결제, 결제 통계 |
+| user | 4005 | 로그인, 사용자 인증 |
+| postgres | 5432 | 영속 데이터 |
+| redis | 6379 | 캐시 |
 
-온프레미스 환경은 kubeadm 기반 Kubernetes 클러스터로 구성하고, AWS 환경은 EKS 기반 Kubernetes 클러스터로 구성합니다. 동일한 애플리케이션을 양쪽 환경에 배포하여 부하 테스트와 모니터링 결과를 비교합니다.
+## 주요 API
 
-## 프로젝트 목표
+| API | 설명 |
+|---|---|
+| `POST /api/auth/login` | 로그인, JWT 발급 |
+| `GET /api/products` | 상품 목록 조회 |
+| `GET /api/products/:id` | 상품 상세 조회 |
+| `POST /api/orders` | 주문 생성, 재고 예약 |
+| `POST /api/payments` | 결제 처리 |
+| `GET /api/stats` | 결제 성공/실패 통계 |
 
-- 온프레미스 Kubernetes 환경 구축
-- AWS EKS 환경 구축
-- 동일 애플리케이션의 양쪽 환경 배포
-- 모니터링 및 부하 테스트 기반 비교
-- CI/CD 자동화 구조 설계
+현재 주문 API는 아래 payload를 사용한다.
 
-## 프로젝트 구조
+```json
+{
+  "items": [
+    {
+      "productId": "uuid",
+      "size": 260,
+      "quantity": 1
+    }
+  ]
+}
+```
+
+현재 결제 API는 아래 payload를 사용한다.
+
+```json
+{
+  "orderId": "uuid",
+  "method": "card"
+}
+```
+
+## 로컬 실행
+
+```bash
+cd msa_shoply
+cp .env.example .env
+docker compose up -d
+```
+
+접속:
 
 ```text
-ON_P_VS_AWS/
-├─ app/          # 공통 애플리케이션 코드
-├─ database/     # 공통 DB 스키마 및 초기 데이터
-├─ load-test/    # 부하 테스트 스크립트
-├─ on-pre/       # 온프레미스 환경 구성
-├─ aws/          # AWS EKS 환경 구성
-├─ cicd/         # CI/CD 관련 구성
-└─ docs/         # 문서GHCR test
+Frontend: http://localhost:3000
+Gateway:  http://localhost:4000
+```
+
+## 이미지 배포
+
+GHCR 기준 이미지 빌드와 push는 스크립트를 사용한다.
+
+```bash
+cd msa_shoply
+./scripts/push-ghcr.sh
+```
+
+GHCR 로그인에는 GitHub username과 `write:packages`, `read:packages` 권한이 있는 PAT이 필요하다. 토큰, `.env`, `.pem`, `.docker-config`는 Git에 올리지 않는다.
+
+## Kubernetes
+
+Kubernetes 배포 문서는 [k8s/README.md](k8s/README.md)를 참고한다.

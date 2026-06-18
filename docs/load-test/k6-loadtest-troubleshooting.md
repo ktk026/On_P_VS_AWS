@@ -194,8 +194,8 @@ docker compose exec prometheus promtool check config /etc/prometheus/prometheus.
 Shoply 타겟 접근 확인:
 
 ```bash
-curl -I http://3.37.248.237
-curl -I http://3.37.248.237:4000/metrics
+curl -I http://54.180.167.159
+curl -I http://54.180.167.159:4000/metrics
 ```
 
 ## k6 결과가 Grafana에 안 보임
@@ -261,7 +261,7 @@ ls -la ~/load-test/k6/results
 ### 현재 기본값
 
 ```text
-http://3.37.248.237
+http://54.180.167.159
 ```
 
 ### 확인

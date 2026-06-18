@@ -1,144 +1,204 @@
 # k6 Load Test Scenarios
 
-## 개요
+이 디렉토리는 Shoply 부하테스트 시나리오와 k6 Docker 이미지를 관리한다.
 
-본 디렉토리는  
-온프레미스 Kubernetes 환경과 AWS EKS 환경을 동일 조건으로 비교하기 위한 k6 부하테스트 시나리오를 관리한다.
+## 현재 실행 대상
 
-이번 프로젝트의 핵심 목표는:
+| 파일 | 용도 |
+|---|---|
+| `shoply-smoke.js` | 로그인, 상품 조회, 상품 상세, 통계 API 연결 확인 |
+| `shoply-order-payment.js` | 주문/결제 API 집중 부하테스트 |
+| `scenario-1-stable-order-payment.js` | 시나리오 1: 안정적인 평상시 기준선 테스트 |
 
-> "동일한 애플리케이션, 동일한 트래픽 조건에서  
-> 온프레미스 k8s와 AWS EKS의 운영 특성 차이를 비교하는 것"
+`deprecated/` 아래 `scenario-1`부터 `scenario-4`는 이전 API 기준으로 작성된 참고용 파일이다. 현재 실험에는 사용하지 않는다.
 
-이다.
+## 실험 시나리오 계획
 
-따라서:
-- 동일한 Docker 이미지
-- 동일한 k6 스크립트
-- 동일한 RPS
-- 동일한 실행 시간
-- 동일한 API 비율
+| 시나리오 | 목적 | 흐름 | 상태 |
+|---|---|---|---|
+| 1. 안정적인 상황 | 평상시 기준선 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제 | `scenario-1-stable-order-payment.js` |
+| 2. 스파이크 | 갑자기 주문이 몰릴 때 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제를 짧은 시간에 증가 | 작성 예정 |
+| 3. 노드 하나 끄기 | 장애 상황 복구 확인 | 부하 유지 중 워커 노드 1개 종료 | 작성 예정 |
 
-을 유지하여 실험 공정성을 확보한다.
+이전 API 기준으로 작성된 legacy `scenario-1`부터 `scenario-4`는 `deprecated/`에 보관한다.
 
----
+## 시나리오 선택 기준
 
-# 디렉토리 구조
+| 목적 | 실행 파일 |
+|---|---|
+| 서버 연결 확인 | `shoply-smoke.js` |
+| 주문/결제 처리량 비교 | `shoply-order-payment.js` |
+| 시나리오 1 안정적인 기준선 | `scenario-1-stable-order-payment.js` |
+
+`shoply-order-payment.js`는 `VUS`, `DURATION` 환경변수로 부하를 조절한다.
+
+`scenario-1-stable-order-payment.js`는 기본적으로 50 -> 100 -> 150 -> 200 -> 250 -> 300 VU 램프가 정의되어 있다.
+
+고정 VU로 한 단계씩 확인하고 싶으면 `LOAD_PROFILE=constant`를 사용한다.
+
+## 테스트 계정 사용 방식
+
+실제 사용자 흐름 시나리오는 VU별로 테스트 계정을 자동 배정한다.
 
 ```text
-load-test/
-└── k6/
-    ├── config.js
-    ├── scenario-1-normal-flow.js
-    ├── scenario-2-spike-order.js
-    ├── scenario-3-ramp-up.js
-    ├── scenario-4-failure-recovery.js
-    └── README.md
+VU 1   -> test1@shoply.com
+VU 2   -> test2@shoply.com
+VU 300 -> test300@shoply.com
 ```
 
----
+계정은 코드에 2000개를 직접 넣지 않고, 아래 환경변수로 계정 풀 크기만 조절한다.
 
-# 공통 실행 방법
+| 변수 | 기본값 | 설명 |
+|---|---:|---|
+| `ACCOUNT_COUNT` | 2000 | 사용할 테스트 계정 풀 크기 |
+| `TEST_PASSWORD` | `Test1234!` | 테스트 계정 공통 비밀번호 |
 
-## 실행 환경
+기본값 `ACCOUNT_COUNT=2000`을 유지하면 테스트 VU 수만큼만 계정이 사용된다.
 
-본 프로젝트는:
-- 로컬 환경
-- Docker 환경
-- EC2 기반 환경
-
-에서 실행 가능하다.
-
-최종 실험은:
-- 온프레미스 전용 Locust/k6 EC2
-- AWS EKS 전용 Locust/k6 EC2
-
-에서 동일 조건으로 수행한다.
-
----
-
-# 실행 대상 변경 방식
-
-모든 시나리오는:
-
-```javascript
-BASE_URL
+```text
+VUS=50  -> test1 ~ test50 사용
+VUS=300 -> test1 ~ test300 사용
+VUS=500 -> test1 ~ test500 사용
 ```
 
-환경변수를 기준으로 실행된다.
-
-따라서:
-- 스크립트는 완전히 동일
-- 대상 주소만 변경
-
-하여 실험 공정성을 유지한다.
-
----
-
-## 온프레미스 테스트
-
-```bash
-BASE_URL=http://<ONPREM-LOADBALANCER-IP> \
-k6 run scenario-1-normal-flow.js
-```
-
----
-
-## AWS EKS 테스트
-
-```bash
-BASE_URL=http://<EKS-ALB-DNS> \
-k6 run scenario-1-normal-flow.js
-```
-
----
-
-# Docker 기반 실행 방법
-
-로컬 또는 EC2에서 Docker 기반으로 k6를 실행할 수 있다.
-
-## Shoply 주문/결제 전용 이미지 빌드
+## Docker 이미지 빌드
 
 ```bash
 cd /Users/kyu/Projects/On_P_VS_AWS
 docker build -t shoply-k6-loadtest:local ./load-test/k6
 ```
 
-## EC2 Docker Compose 실행
-
-`load-test/k6/docker-compose.yml`은 EC2에서 k6 부하테스트 이미지를 빌드하고 실행하기 위한 파일이다.
-
-기본값:
-
-| 항목 | 값 |
-|---|---|
-| 부하 타겟 | `http://3.37.248.237` |
-| Prometheus remote write | `http://3.36.26.83:9090/api/v1/write` |
-| 기본 시나리오 | `shoply-order-payment.js` |
-| 기본 VU | `100` |
-| 기본 시간 | `5m` |
-
-EC2에서 실행:
+EC2에서 사용할 이미지는 같은 Dockerfile로 빌드한다.
 
 ```bash
 cd load-test/k6
 docker compose build
-TEST_RUN_ID=ec2-100vus-5m VUS=100 DURATION=5m docker compose run --rm order-payment
 ```
 
-400명 테스트:
+## Docker Compose 실행
+
+기본 서비스는 `order-payment`이며 기본 시나리오는 `shoply-order-payment.js`다.
 
 ```bash
-TEST_RUN_ID=ec2-400vus-5m VUS=400 DURATION=5m docker compose run --rm order-payment
+cd load-test/k6
+
+BASE_URL=http://<SHOPLY_TARGET> \
+K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
+TEST_RUN_ID=order-payment-100vus-5m \
+VUS=100 \
+DURATION=5m \
+docker compose run --rm order-payment
 ```
 
-450명 테스트:
+시나리오 1 안정적인 상황 테스트:
 
 ```bash
-TEST_RUN_ID=ec2-450vus-5m VUS=450 DURATION=5m docker compose run --rm order-payment
+BASE_URL=http://<SHOPLY_TARGET> \
+K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
+TEST_RUN_ID=stable-flow-300vus \
+SCENARIO=scenario-1-stable-order-payment.js \
+docker compose run --rm order-payment
 ```
 
-결과 저장 위치:
+시나리오 1 고정 VU 테스트:
+
+```bash
+BASE_URL=http://<SHOPLY_TARGET> \
+K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
+TEST_RUN_ID=stable-flow-100vus-5m \
+SCENARIO=scenario-1-stable-order-payment.js \
+LOAD_PROFILE=constant \
+VUS=100 \
+DURATION=5m \
+docker compose run --rm order-payment
+```
+
+Smoke test:
+
+```bash
+BASE_URL=http://<SHOPLY_TARGET> \
+SCENARIO=shoply-smoke.js \
+VUS=5 \
+DURATION=30s \
+docker compose run --rm order-payment
+```
+
+Compose profile로 실행할 수도 있다.
+
+```bash
+docker compose --profile scenarios run --rm smoke
+docker compose --profile scenarios run --rm stable-flow
+```
+
+## 현재 EC2 실행 예시
+
+최신 EC2 정보 기준 예시는 아래와 같다.
+
+실행 전 PostgreSQL 서버에서 재고를 초기화한다.
+
+```bash
+docker exec -i shoply-postgres psql -U shoply -d shoply < ~/postgres/load-test-prep.sql
+```
+
+애플리케이션 EC2에서 이벤트 로그를 캡처하려면 별도 터미널에서 실행한다.
+
+```bash
+sudo -i
+/home/ubuntu/scripts/capture-loop.sh shoply 30
+```
+
+부하테스트 서버에서 k6를 실행한다.
+
+```bash
+cd ~/load-test/k6
+
+BASE_URL=http://54.180.167.159 \
+K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
+TEST_RUN_ID=ec2-stable-flow \
+SCENARIO=scenario-1-stable-order-payment.js \
+docker compose run --rm order-payment
+```
+
+Smoke test:
+
+```bash
+BASE_URL=http://54.180.167.159 \
+SCENARIO=shoply-smoke.js \
+VUS=5 \
+DURATION=30s \
+docker compose run --rm order-payment
+```
+
+시나리오 1 고정 VU 테스트:
+
+```bash
+BASE_URL=http://54.180.167.159 \
+K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
+TEST_RUN_ID=ec2-stable-flow-100vus-5m \
+SCENARIO=scenario-1-stable-order-payment.js \
+LOAD_PROFILE=constant \
+VUS=100 \
+DURATION=5m \
+docker compose run --rm order-payment
+```
+
+주문/결제 API만 100명, 5분 테스트:
+
+```bash
+BASE_URL=http://54.180.167.159 \
+K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
+TEST_RUN_ID=ec2-order-payment-100vus-5m \
+VUS=100 \
+DURATION=5m \
+docker compose run --rm order-payment
+```
+
+주의: `PROMETHEUS_RW_URL`이 아니라 `K6_PROMETHEUS_RW_SERVER_URL`을 사용한다.
+URL은 `http://<PROMETHEUS_IP>:9090/api/v1/write`처럼 `/api/v1/write`까지 포함해야 한다.
+
+## 결과 저장
+
+`shoply-order-payment.js`는 `handleSummary`로 결과 파일을 저장한다.
 
 ```text
 load-test/k6/results/<TEST_RUN_ID>/
@@ -146,106 +206,7 @@ load-test/k6/results/<TEST_RUN_ID>/
 └── summary.md
 ```
 
-다른 시나리오를 실행하려면 `SCENARIO`를 바꿔도 된다.
-
-```bash
-TEST_RUN_ID=ec2-spike-order \
-SCENARIO=scenario-2-spike-order.js \
-docker compose run --rm order-payment
-```
-
-또는 compose에 정의된 시나리오 서비스를 직접 실행할 수 있다.
-
-```bash
-docker compose --profile scenarios run --rm spike-order
-docker compose --profile scenarios run --rm ramp-up
-docker compose --profile scenarios run --rm failure-recovery
-```
-
-타겟이나 모니터링 서버가 바뀌면 환경변수로 덮어쓴다.
-
-```bash
-BASE_URL=http://<TARGET-IP> \
-K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS-IP>:9090/api/v1/write \
-TEST_RUN_ID=ec2-custom-target \
-docker compose run --rm order-payment
-```
-
-## Shoply 주문/결제 부하테스트 실행
-
-로컬 Docker Compose 대상:
-
-```bash
-docker run --rm \
-  -e BASE_URL=http://host.docker.internal:4000 \
-  -e VUS=100 \
-  -e DURATION=5m \
-  shoply-k6-loadtest:local
-```
-
-Prometheus remote write까지 연결:
-
-```bash
-docker run --rm \
-  -e BASE_URL=http://host.docker.internal:4000 \
-  -e VUS=100 \
-  -e DURATION=5m \
-  -e K6_OUTPUT=experimental-prometheus-rw \
-  -e K6_PROMETHEUS_RW_SERVER_URL=http://host.docker.internal:9090/api/v1/write \
-  shoply-k6-loadtest:local
-```
-
-EC2에서 실행할 때는 `BASE_URL`만 대상 주소로 바꾼다.
-
-```bash
-docker run --rm \
-  -e BASE_URL=http://<SHOPLY-GATEWAY-OR-INGRESS> \
-  -e VUS=100 \
-  -e DURATION=5m \
-  -e K6_OUTPUT=experimental-prometheus-rw \
-  -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS-IP>:9090/api/v1/write \
-  shoply-k6-loadtest:local
-```
-
-## 로컬 실행 결과 저장
-
-주문/결제 전용 로컬 실행 스크립트는 매 실행 결과를 자동으로 저장한다.
-
-```bash
-load-test/k6/reset-local-experiment.sh
-VUS=100 DURATION=5m load-test/k6/run-local-order-payment.sh
-```
-
-결과 파일은 아래 경로에 생성된다.
-
-```text
-load-test/results/order-payment/<run-id>/
-├── summary.json
-└── summary.md
-```
-
-- `summary.json`: k6 원본 요약 데이터와 비교분석용 핵심 지표
-- `summary.md`: 보고서에 바로 붙이기 쉬운 요약 표
-
-실행 ID를 직접 지정하고 싶으면 `RUN_ID`를 사용한다.
-
-```bash
-RUN_ID=local-400vus-baseline \
-VUS=400 \
-DURATION=5m \
-load-test/k6/run-local-order-payment.sh
-```
-
-저장 위치를 바꾸고 싶으면 `RESULTS_ROOT` 또는 `RESULT_DIR`를 사용한다.
-
-```bash
-RESULTS_ROOT=/tmp/shoply-load-results \
-VUS=450 \
-DURATION=5m \
-load-test/k6/run-local-order-payment.sh
-```
-
-여러 실행 결과를 비교표로 합치려면 아래 명령을 실행한다.
+여러 실행 결과를 CSV/Markdown 비교표로 합치려면:
 
 ```bash
 node load-test/k6/collect-order-payment-results.mjs
@@ -258,371 +219,47 @@ load-test/results/order-payment/order-payment-summary.csv
 load-test/results/order-payment/order-payment-summary.md
 ```
 
-한계점 탐색 예시:
+## 해석 기준
+
+`scenario-1-stable-order-payment.js`는 아래 흐름으로 평상시 기준선을 먼저 확인하고, 어느 구간부터 불안정해지는지 함께 관찰한다.
+
+```text
+50 VU → 100 VU → 150 VU → 200 VU → 250 VU → 300 VU 유지 → 0 VU
+```
+
+해석 예시:
+
+- 200 VU까지 안정적이면 비교 기준 부하로 사용
+- 250 VU부터 P95 latency가 증가하면 성능 한계 진입 구간
+- 300 VU부터 Pending Pod가 발생하면 클러스터 자원 한계 구간
+- 위 패턴이면 한계점은 250~300 VU 사이로 판단
+
+별도 고정 VU 테스트로 한계점을 좁힐 때는 아래 순서로 진행한다.
+
+```text
+10 VU, 1분
+50 VU, 3분
+100 VU, 5분
+200 VU, 5분
+300 VU, 5분
+500 VU, 5분
+```
+
+300 VU는 안정적이고 500 VU에서 불안정하면 바로 1000 VU로 가지 않고 350, 400, 450 VU를 추가 확인한다.
+
+예시:
 
 ```bash
-# 기준점
-docker run --rm -e BASE_URL=http://<TARGET> -e VUS=100 -e DURATION=5m shoply-k6-loadtest:local
-
-# 비교점
-docker run --rm -e BASE_URL=http://<TARGET> -e VUS=400 -e DURATION=5m shoply-k6-loadtest:local
-
-# 이후 50명씩 증가
-docker run --rm -e BASE_URL=http://<TARGET> -e VUS=450 -e DURATION=5m shoply-k6-loadtest:local
-docker run --rm -e BASE_URL=http://<TARGET> -e VUS=500 -e DURATION=5m shoply-k6-loadtest:local
+LOAD_PROFILE=constant VUS=10 DURATION=1m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
+LOAD_PROFILE=constant VUS=50 DURATION=3m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
+LOAD_PROFILE=constant VUS=100 DURATION=5m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
+LOAD_PROFILE=constant VUS=200 DURATION=5m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
+LOAD_PROFILE=constant VUS=300 DURATION=5m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
+LOAD_PROFILE=constant VUS=500 DURATION=5m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
 ```
 
-## Docker 실행 예시
-
-```bash
-docker run --rm -i grafana/k6 run - < scenario-1-normal-flow.js
-```
-
----
-
-## Docker 기반 실행 이유
-
-Docker 기반 실행을 사용하는 이유는:
-
-- k6 버전 통일
-- 실행 환경 차이 제거
-- 로컬 PC 성능 차이 최소화
-- 반복 실험 재현성 확보
-- 팀원 간 동일 실행 환경 유지
-
-를 위함이다.
-
----
-
-# config.js
-
-공통 설정 파일.
-
-## 포함 내용
-
-- BASE_URL
-- 공통 Threshold
-- 공통 Header
-
----
-
-## 목적
-
-온프레미스와 AWS EKS에서:
-- 테스트 대상 주소만 변경
-- 동일한 스크립트 재사용
-
-을 가능하게 한다.
-
----
-
-# 시나리오 구성 목적
-
-이번 프로젝트의 시나리오는 단순 부하 생성이 목적이 아니다.
-
-핵심 목적은:
-
-```text
-동일한 트래픽 상황에서
-온프레미스 Kubernetes와 AWS EKS가
-어떻게 다르게 반응하는가
-```
-
-를 데이터로 비교하는 것이다.
-
----
-
-# Scenario 1 — Normal User Flow
-
-## 목적
-
-평상시 트래픽 상황에서:
-- 온프레미스
-- AWS EKS
-
-모두 안정적으로 운영 가능한지 확인한다.
-
----
-
-## 사용자 흐름
-
-```text
-로그인
-→ 상품 목록 조회
-→ 상품 상세 조회
-```
-
-실제 쇼핑몰 사용자의 일반적인 행동 흐름을 기반으로 구성한다.
-
----
-
-## 트래픽 구성
-
-| 구간 | RPS | 목적 |
-|---|---:|---|
-| 0~5분 | 100 | 워밍업 |
-| 5~15분 | 200 | 정상 트래픽 유지 |
-| 15~20분 | 200 | 안정성 관찰 |
-
----
-
-## API 비율
-
-| 엔드포인트 | 비율 |
-|---|---:|
-| GET /api/products | 70% |
-| POST /api/orders | 20% |
-| POST /api/payments | 10% |
-
----
-
-## 핵심 관찰 항목
-
-- Error Rate
-- P95 Latency
-- Pod Count
-- CPU / Memory 사용률
-
----
-
-## 전달 메시지
-
-> "트래픽이 예측 가능하고 안정적이라면  
-> 온프레미스 환경도 충분히 운영 가능하다."
-
----
-
-# Scenario 2 — Spike Order Traffic
-
-## 목적
-
-타임세일 상황처럼 순간적으로 트래픽이 폭증할 때:
-- 온프레미스
-- AWS EKS
-
-의 확장 및 운영 반응 차이를 비교한다.
-
----
-
-## 핵심 서비스
-
-- Product Service
-- Inventory Service
-
----
-
-## 트래픽 구성
-
-| 구간 | RPS | 목적 |
-|---|---:|---|
-| 0~5분 | 100 | 정상 상태 유지 |
-| 5분 | 1000 | 순간 폭증 |
-| 5~15분 | 1000 | 폭증 유지 |
-| 15~20분 | 1000 | 안정화 관찰 |
-
----
-
-## API 비율
-
-| 엔드포인트 | 비율 |
-|---|---:|
-| GET /api/products | 50% |
-| POST /api/orders | 30% |
-| POST /api/payments | 20% |
-
----
-
-## 핵심 관찰 항목
-
-- Pending Pod
-- Error Rate
-- Node Count
-- HPA current vs desired
-- P95 Latency
-
----
-
-## 예상 결과
-
-### 온프레미스
-
-```text
-HPA Pod 증가 시도
-→ 노드 자원 부족
-→ Pending Pod 증가
-→ Error Rate 증가
-```
-
----
-
-### AWS EKS
-
-```text
-HPA Pod 증가
-→ Karpenter Node 자동 추가
-→ Pending 해소
-→ 안정적 운영 유지
-```
-
----
-
-## 전달 메시지
-
-> "운영 자동화와 확장 전략 차이가  
-> 서비스 안정성 차이로 이어진다."
-
----
-
-# Scenario 3 — Ramp-Up Load
-
-## 목적
-
-트래픽을 단계적으로 증가시키며:
-- 시스템 한계점
-- Auto Scaling 반응 시점
-
-을 확인한다.
-
----
-
-## 트래픽 구성
-
-| 구간 | RPS |
-|---|---:|
-| 0~5분 | 100 |
-| 5~10분 | 300 |
-| 10~15분 | 500 |
-| 15~20분 | 700 |
-| 20~25분 | 1000 |
-
----
-
-## 핵심 관찰 항목
-
-- CPU 사용률
-- Pending Pod 발생 시점
-- HPA 반응 시점
-- Node Count 증가 시점
-- Error Rate 증가 시점
-
----
-
-## 전달 메시지
-
-> "문제는 현재 성능이 아니라  
-> 증가하는 트래픽에 얼마나 유연하게 대응할 수 있는가이다."
-
----
-
-# Scenario 4 — Failure Recovery
-
-## 목적
-
-피크 트래픽 상황에서 워커노드 장애 발생 시:
-- 복구 속도
-- 서비스 안정성
-- 운영 효율성
-
-차이를 비교한다.
-
----
-
-## 장애 방식
-
-테스트 중:
-- 워커노드 2 강제 종료
-
-를 수행한다.
-
----
-
-## 트래픽 구성
-
-| 구간 | 상태 |
-|---|---|
-| 0~5분 | 500 RPS 유지 |
-| 5분 | 워커노드 2 강제 종료 |
-| 5~15분 | 복구 과정 관찰 |
-| 15~20분 | 정상화 여부 확인 |
-
----
-
-## 핵심 관찰 항목
-
-- MTTR
-- Pending Pod
-- 주문/결제 실패 건수
-- Pod 재스케줄링 시간
-- Node Count 변화
-
----
-
-## 예상 결과
-
-### 온프레미스
-
-```text
-재스케줄 시도
-→ 자원 부족
-→ Pending 증가
-→ 복구 지연
-```
-
----
-
-### AWS EKS
-
-```text
-Karpenter 신규 노드 추가
-→ Pod 재배치
-→ 빠른 복구
-```
-
----
-
-## 전달 메시지
-
-> "복구 시간이 곧 비즈니스 손실이다."
-
----
-
-# 실험 공정성 기준
-
-다음 항목은 반드시 동일하게 유지한다.
-
-- 동일한 Docker 이미지
-- 동일한 k6 스크립트
-- 동일한 RPS
-- 동일한 실행 시간
-- 동일한 API 비율
-- 동일한 Prometheus 지표
-- 동일한 DB 스키마
-
----
-
-# 핵심 비교 지표
-
-| 지표 | 설명 |
-|---|---|
-| TPS | 초당 처리 요청 수 |
-| P95 Latency | 사용자 체감 응답속도 |
-| Error Rate | 5xx 에러 비율 |
-| Pod Count | Running Pod 수 |
-| Pending Pod | 자원 부족 상태 |
-| Node Count | 노드 자동 증가 여부 |
-| HPA current vs desired | Autoscaling 정상 여부 |
-| CPU / Memory | 리소스 사용량 |
-
----
-
-# 핵심 메시지
-
-이번 프로젝트는 단순 성능 비교가 아니라:
-
-```text
-동일한 환경 조건에서
-온프레미스 Kubernetes와 AWS EKS의
-운영 특성 차이를 데이터로 비교하는 실험
-```
-
-이다.
+## 주의
+
+- `PROMETHEUS_RW_URL`이 아니라 `K6_PROMETHEUS_RW_SERVER_URL`을 사용한다.
+- `deprecated/`에 있는 legacy 시나리오는 실행하지 않는다.
+- 토큰, `.env`, `.pem`, `.docker-config`는 Git에 올리지 않는다.

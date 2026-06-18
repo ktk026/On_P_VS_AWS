@@ -1,140 +1,103 @@
-# Shoply K8s 매니페스트
+# Shoply Kubernetes Manifests
 
-## 디렉토리 구조
+이 디렉토리는 Shoply MSA를 Kubernetes에 배포하기 위한 매니페스트를 관리한다. 공통 리소스는 `common/`에 두고, 환경별 차이는 `onprem/`, `eks/`, `argocd/`에서 관리한다.
 
-```
+## 구조
+
+```text
 k8s/
-├── common/                  # 공통 (환경 무관)
-│   ├── namespace.yaml       # shoply 네임스페이스
-│   ├── configmap.yaml       # 공통 환경변수 (DB/Redis host는 placeholder)
-│   ├── secret.yaml          # DB 비밀번호, JWT 시크릿
-│   ├── user.yaml            # User Service + ClusterIP
-│   ├── product.yaml         # Product Service + ClusterIP
-│   ├── inventory.yaml       # Inventory Service + ClusterIP
-│   ├── order.yaml           # Order Service + ClusterIP
-│   ├── payment.yaml         # Payment Service + ClusterIP
-│   ├── gateway.yaml         # API Gateway + ClusterIP
-│   ├── frontend.yaml        # Frontend (nginx) + ClusterIP
-│   └── hpa.yaml             # HPA (product/inventory/order/payment/gateway)
-│
-├── onprem/                  # 온프레미스 전용
-│   ├── configmap-patch.yaml # DB/Redis EC2 IP 오버라이드
-│   ├── ingress.yaml         # Nginx Ingress
-│   ├── nodeport-services.yaml  # NodePort (Prometheus 외부 스크랩용)
-│   └── resource-patch.yaml    # t3.medium(2vCPU/4GB×2) 기준 리소스 제한
-│
-└── eks/                     # AWS EKS 전용
-    ├── configmap-patch.yaml # RDS/ElastiCache 엔드포인트 오버라이드
-    ├── ingress-alb.yaml     # AWS ALB Ingress
-    ├── karpenter-nodepool.yaml  # Karpenter NodePool + EC2NodeClass
-    └── serviceaccount.yaml  # ALB Controller IRSA
+├── common/       # Namespace, ConfigMap, Secret, Deployment, Service, HPA
+├── onprem/       # 온프레미스 전용 overlay, Ingress, NodePort, MetalLB, cAdvisor
+├── eks/          # EKS 전용 리소스, Karpenter 관련 설정
+└── argocd/       # ArgoCD Application 매니페스트
 ```
 
----
-
-## GHCR 인증 Secret 생성 (배포 전 필수)
-
-GHCR은 기본 private이므로 k8s가 이미지를 pull하려면 아래 명령으로 Secret을 먼저 만들어야 한다.
-GitHub PAT은 `read:packages` 권한만 있으면 됨.
+현재 `common/`과 `onprem/`에는 Kustomize 진입점이 있다.
 
 ```bash
+kubectl kustomize msa_shoply/k8s/common
+kubectl kustomize msa_shoply/k8s/onprem
+```
+
+`eks/`는 EKS 환경 확정 후 overlay 진입점을 추가한다.
+
+## 온프레미스 배포
+
+온프레미스 환경은 아래 overlay를 기준으로 렌더링한다.
+
+```bash
+kubectl kustomize msa_shoply/k8s/onprem
+```
+
+직접 적용:
+
+```bash
+kubectl apply -k msa_shoply/k8s/onprem
+```
+
+ArgoCD로 배포할 경우 `argocd/shoply-onprem-app.yaml`을 사용한다.
+
+```bash
+kubectl apply -f msa_shoply/k8s/argocd/shoply-onprem-app.yaml
+```
+
+`shoply-onprem-app.yaml`의 destination은 ArgoCD에 `onprem` 클러스터가 등록되어 있다는 전제다.
+
+```yaml
+destination:
+  name: onprem
+  namespace: shoply
+```
+
+## GHCR 인증
+
+GHCR 이미지가 private이면 클러스터에 image pull secret이 필요하다. GitHub PAT은 최소 `read:packages` 권한이 필요하다.
+
+```bash
+kubectl create namespace shoply --dry-run=client -o yaml | kubectl apply -f -
+
 kubectl create secret docker-registry ghcr-secret \
   --docker-server=ghcr.io \
-  --docker-username=incheon-soda \
-  --docker-password=<YOUR_GITHUB_TOKEN> \
+  --docker-username=<GITHUB_USERNAME> \
+  --docker-password=<GITHUB_PAT> \
   --namespace=shoply
 ```
 
----
-
-## 적용 순서
-
-### 온프레미스
-
-```bash
-# 1. 네임스페이스 + 공통 리소스
-kubectl apply -f k8s/common/namespace.yaml
-kubectl create secret docker-registry ghcr-secret \
-  --docker-server=ghcr.io --docker-username=incheon-soda \
-  --docker-password=<YOUR_GITHUB_TOKEN> \
-  --namespace=shoply
-kubectl apply -f k8s/onprem/configmap-patch.yaml   # DB/Redis IP 먼저 설정
-kubectl apply -f k8s/common/secret.yaml
-
-# 2. 서비스 배포
-kubectl apply -f k8s/common/user.yaml
-kubectl apply -f k8s/common/product.yaml
-kubectl apply -f k8s/common/inventory.yaml
-kubectl apply -f k8s/common/order.yaml
-kubectl apply -f k8s/common/payment.yaml
-kubectl apply -f k8s/common/gateway.yaml
-kubectl apply -f k8s/common/frontend.yaml
-
-# 3. HPA + Ingress
-kubectl apply -f k8s/common/hpa.yaml
-kubectl apply -f k8s/onprem/ingress.yaml
-
-# 4. (옵션) Prometheus 외부 스크랩용 NodePort
-kubectl apply -f k8s/onprem/nodeport-services.yaml
-
-# 5. (옵션) 리소스 제한 조정
-kubectl apply -f k8s/onprem/resource-patch.yaml
-```
-
-### EKS
-
-```bash
-# 사전 준비: AWS Load Balancer Controller, Karpenter 설치 완료 상태
-
-# 1. 네임스페이스 + 공통 리소스
-kubectl apply -f k8s/common/namespace.yaml
-kubectl apply -f k8s/eks/configmap-patch.yaml     # RDS/ElastiCache 엔드포인트
-kubectl apply -f k8s/common/secret.yaml
-
-# 2. 서비스 배포
-kubectl apply -f k8s/common/user.yaml
-kubectl apply -f k8s/common/product.yaml
-kubectl apply -f k8s/common/inventory.yaml
-kubectl apply -f k8s/common/order.yaml
-kubectl apply -f k8s/common/payment.yaml
-kubectl apply -f k8s/common/gateway.yaml
-kubectl apply -f k8s/common/frontend.yaml
-
-# 3. HPA + ALB Ingress + Karpenter
-kubectl apply -f k8s/common/hpa.yaml
-kubectl apply -f k8s/eks/ingress-alb.yaml
-kubectl apply -f k8s/eks/karpenter-nodepool.yaml
-```
-
----
+토큰은 문서, Git, 이슈, PR에 남기지 않는다.
 
 ## 배포 전 체크리스트
 
-| 항목 | 온프레미스 | EKS |
-|------|-----------|-----|
-| ConfigMap DB 주소 설정 | `onprem/configmap-patch.yaml` IP 변경 | `eks/configmap-patch.yaml` 엔드포인트 변경 |
-| Secret 값 변경 | `common/secret.yaml` 비밀번호 변경 | 동일 |
-| 이미지 레지스트리 | 각 Deployment의 `image:` 변경 | 동일 |
-| Karpenter IAM | — | `serviceaccount.yaml` ACCOUNT_ID 변경 |
-| ALB Controller | — | Helm 설치 후 IRSA 연결 |
-| Nginx Ingress | `helm install ingress-nginx` | — |
+| 항목 | 확인 내용 |
+|---|---|
+| 이미지 태그 | 온프레미스와 EKS에 동일 태그 사용 |
+| GHCR Secret | `shoply` namespace에 `ghcr-secret` 존재 |
+| ConfigMap | DB/Redis 주소가 환경에 맞는지 확인 |
+| Secret | DB 비밀번호, JWT secret 변경 |
+| Ingress | 온프레미스 NodePort 또는 MetalLB 사용 방식 확인 |
+| HPA | resource request/limit이 HPA 기준과 맞는지 확인 |
 
----
+## 이미지 태그 원칙
 
-## 이미지 빌드 & 푸시
+실험 공정성을 위해 `latest` 대신 커밋 SHA나 명시적인 실험 태그를 사용한다.
+
+```text
+ghcr.io/ktk026/shoply-gateway:<commit-sha>
+ghcr.io/ktk026/shoply-order:<commit-sha>
+```
+
+`latest`는 push 시점에 따라 실제 이미지가 달라질 수 있으므로, 온프레미스와 EKS 비교 실험에는 적합하지 않다.
+
+## 검증 명령
 
 ```bash
-# 예시 (GHCR 사용)
-REGISTRY=ghcr.io/incheon-soda
+kubectl get pods -n shoply -o wide
+kubectl get svc -n shoply
+kubectl get hpa -n shoply
+kubectl get events -n shoply --sort-by=.metadata.creationTimestamp
+```
 
-docker build -t $REGISTRY/shoply-user:latest ./services/user
-docker build -t $REGISTRY/shoply-product:latest ./services/product
-docker build -t $REGISTRY/shoply-inventory:latest ./services/inventory
-docker build -t $REGISTRY/shoply-order:latest ./services/order
-docker build -t $REGISTRY/shoply-payment:latest ./services/payment
-docker build -t $REGISTRY/shoply-gateway:latest ./gateway
-docker build -t $REGISTRY/shoply-frontend:latest ./frontend
+렌더링 결과 확인:
 
-docker push $REGISTRY/shoply-user:latest
-# ... 나머지 동일
+```bash
+kubectl kustomize msa_shoply/k8s/onprem | less
 ```

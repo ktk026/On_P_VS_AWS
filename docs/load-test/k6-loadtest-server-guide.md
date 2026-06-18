@@ -18,7 +18,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 부하 타겟 | `http://3.37.248.237` |
+| 부하 타겟 | `http://54.180.167.159` |
 | Grafana 포트 | `3000` |
 | Prometheus 포트 | `9090` |
 | cAdvisor 포트 | `8080` |
@@ -118,11 +118,11 @@ TEST_RUN_ID=server-400vus-5m VUS=400 DURATION=5m docker compose --profile run ru
 TEST_RUN_ID=server-450vus-5m VUS=450 DURATION=5m docker compose --profile run run --rm k6
 ```
 
-다른 시나리오 실행:
+시나리오 1 안정적인 상황 실행:
 
 ```bash
-TEST_RUN_ID=server-spike-order \
-SCENARIO=scenario-2-spike-order.js \
+TEST_RUN_ID=server-stable-flow \
+SCENARIO=scenario-1-stable-order-payment.js \
 docker compose --profile run run --rm k6
 ```
 
@@ -169,7 +169,7 @@ admin / admin
 
 | 대상 | 용도 |
 |---|---|
-| `3.37.248.237` | Shoply 부하 타겟 접근 |
+| `54.180.167.159` | Shoply 부하 타겟 접근 |
 | Docker Hub, gcr.io | Docker 이미지 다운로드 |
 
 ## Grafana 대시보드

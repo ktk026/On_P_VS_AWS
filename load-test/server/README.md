@@ -1,6 +1,6 @@
 # Shoply Load Test Server
 
-이 폴더는 부하테스트 서버에 올릴 k6 + 모니터링 스택 패키지다.
+이 디렉토리는 부하테스트 서버에 올릴 k6 + Prometheus + Grafana 패키지다. EC2에 Docker만 설치되어 있으면 Compose로 모니터링 스택과 k6 실행 환경을 함께 올릴 수 있다.
 
 ## 구성
 
@@ -12,18 +12,7 @@
 | Node Exporter | EC2 CPU, RAM, Disk, Network 수집 | 9100 |
 | cAdvisor | Docker 컨테이너 CPU, RAM, Network 수집 | 8080 |
 
-## 기본 타겟
-
-| 항목 | 값 |
-|---|---|
-| 부하 대상 | `http://3.37.248.237` |
-| k6 결과 수집 | `http://prometheus:9090/api/v1/write` |
-
-같은 Docker Compose 네트워크 안에서 k6가 Prometheus로 직접 remote write를 보내므로, 기본값은 내부 주소 `prometheus:9090`을 사용한다.
-
 ## 서버 준비
-
-부하테스트 서버에는 Docker와 Docker Compose plugin이 필요하다.
 
 Ubuntu 예시:
 
@@ -33,16 +22,13 @@ sudo apt-get install -y ca-certificates curl git
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo usermod -aG docker "$USER"
 ```
 
-설치 후 세션을 다시 접속하거나 아래 명령으로 Docker 권한을 반영한다.
+설치 후 재접속하거나 아래 명령으로 Docker 권한을 반영한다.
 
 ```bash
 newgrp docker
@@ -50,26 +36,15 @@ newgrp docker
 
 ## 서버로 옮길 파일
 
-부하테스트 서버에는 `load-test` 폴더 전체를 옮기는 것을 권장한다.
+`server/docker-compose.yml`이 `../k6`를 빌드 컨텍스트로 사용하므로 `load-test` 폴더 전체를 옮긴다.
 
 ```text
 load-test/
 ├── k6/
-│   ├── Dockerfile
-│   ├── entrypoint.sh
-│   ├── config.js
-│   ├── shoply-order-payment.js
-│   └── scenario-*.js
 └── server/
-    ├── docker-compose.yml
-    ├── prometheus.yml
-    ├── .env.example
-    └── grafana/
 ```
 
-`server/docker-compose.yml`이 `../k6`를 빌드 컨텍스트로 사용하므로 `server` 폴더만 단독으로 옮기면 k6 이미지 빌드가 안 된다.
-
-## 실행
+## 모니터링 스택 실행
 
 ```bash
 cd load-test/server
@@ -84,13 +59,12 @@ docker compose up -d prometheus grafana node-exporter cadvisor
 docker compose ps
 ```
 
-접속 주소:
+접속:
 
 ```text
 Grafana:    http://<LOAD_TEST_SERVER_IP>:3000
 Prometheus: http://<LOAD_TEST_SERVER_IP>:9090
 cAdvisor:   http://<LOAD_TEST_SERVER_IP>:8080
-Node Exporter metrics: http://<LOAD_TEST_SERVER_IP>:9100/metrics
 ```
 
 Grafana 기본 로그인:
@@ -99,37 +73,49 @@ Grafana 기본 로그인:
 admin / admin
 ```
 
-## k6 부하 실행
+## k6 실행
 
-100명, 5분:
-
-```bash
-TEST_RUN_ID=server-100vus-5m VUS=100 DURATION=5m docker compose --profile run run --rm k6
-```
-
-400명, 5분:
+기본 시나리오는 `shoply-order-payment.js`다.
 
 ```bash
-TEST_RUN_ID=server-400vus-5m VUS=400 DURATION=5m docker compose --profile run run --rm k6
-```
-
-450명, 5분:
-
-```bash
-TEST_RUN_ID=server-450vus-5m VUS=450 DURATION=5m docker compose --profile run run --rm k6
-```
-
-다른 시나리오 실행:
-
-```bash
-TEST_RUN_ID=server-spike-order \
-SCENARIO=scenario-2-spike-order.js \
+BASE_URL=http://<SHOPLY_TARGET> \
+TEST_RUN_ID=server-order-payment-100vus-5m \
+VUS=100 \
+DURATION=5m \
 docker compose --profile run run --rm k6
 ```
 
-## 결과 저장 위치
+시나리오 1 안정적인 상황 테스트:
 
-k6 실행 결과는 아래에 저장된다.
+```bash
+BASE_URL=http://<SHOPLY_TARGET> \
+TEST_RUN_ID=server-stable-flow \
+SCENARIO=scenario-1-stable-order-payment.js \
+docker compose --profile run run --rm k6
+```
+
+`scenario-1-stable-order-payment.js`는 VU별로 테스트 계정을 자동 배정한다.
+
+```text
+VU 1 -> test1@shoply.com
+VU 2 -> test2@shoply.com
+```
+
+기본값 `ACCOUNT_COUNT=2000`을 유지하면 실제 VU 수만큼만 계정이 사용된다.
+
+같은 Compose 네트워크 안에서 k6가 Prometheus로 remote write를 보내므로 기본값은 아래 내부 주소를 사용한다.
+
+```text
+http://prometheus:9090/api/v1/write
+```
+
+외부 Prometheus로 보낼 때만 덮어쓴다.
+
+```bash
+K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write
+```
+
+## 결과 저장 위치
 
 ```text
 load-test/k6/results/server/<TEST_RUN_ID>/
@@ -153,18 +139,18 @@ load-test/k6/results/server/<TEST_RUN_ID>/
 
 | 대상 | 용도 |
 |---|---|
-| `3.37.248.237` | Shoply 부하 타겟 |
+| Shoply target | 부하 대상 |
 | Docker Hub, gcr.io | Docker 이미지 pull |
 
-## Grafana 대시보드 템플릿 ID
+## Grafana 대시보드
 
-Grafana에서 `Dashboards > New > Import`로 아래 ID를 가져오면 된다.
+Grafana에서 `Dashboards > New > Import`로 아래 ID를 가져올 수 있다.
 
 | 목적 | Dashboard ID |
 |---|---:|
-| 서버 자원 모니터링, Node Exporter Full | 1860 |
-| Docker 컨테이너 모니터링, cAdvisor | 14282 |
-| Docker 컨테이너 모니터링 대안 | 15798 |
+| Node Exporter Full | 1860 |
+| Docker/cAdvisor | 14282 |
+| Docker/cAdvisor 대안 | 15798 |
 | k6 Prometheus 공식 대시보드 | 19665 |
 
 이 패키지에는 Shoply 주문/결제 부하 전용 대시보드도 자동 provision된다.
@@ -175,8 +161,8 @@ Shoply Load Test / Shoply Order Payment Load
 
 ## 확인 순서
 
-1. `docker compose ps`에서 네 모니터링 컨테이너가 `Up`인지 확인
-2. `http://<LOAD_TEST_SERVER_IP>:9090/targets`에서 `prometheus`, `loadtest-node`, `loadtest-cadvisor`가 `UP`인지 확인
-3. Grafana 접속 후 Prometheus datasource 확인
+1. `docker compose ps`에서 모니터링 컨테이너가 `Up`인지 확인
+2. `http://<LOAD_TEST_SERVER_IP>:9090/targets`에서 target이 `UP`인지 확인
+3. Grafana에서 Prometheus datasource 확인
 4. k6 테스트 실행
 5. Grafana에서 `Shoply Order Payment Load` 또는 `k6 Prometheus` 대시보드 확인
