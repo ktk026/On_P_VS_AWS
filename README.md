@@ -29,6 +29,7 @@ ON_P_VS_AWS/
 |---|---|
 | [msa_shoply/README.md](msa_shoply/README.md) | Shoply 앱 구조와 로컬 실행 |
 | [msa_shoply/k8s/README.md](msa_shoply/k8s/README.md) | K8s, Kustomize, ArgoCD 배포 |
+| [docs/load-test/README.md](docs/load-test/README.md) | 부하테스트 전체 작업 현황과 앞으로 할 일 |
 | [load-test/k6/README.md](load-test/k6/README.md) | k6 시나리오 실행 |
 | [load-test/server/README.md](load-test/server/README.md) | 부하테스트 서버와 모니터링 스택 |
 | [cicd/README.md](cicd/README.md) | GHCR, GitHub Actions |
@@ -36,18 +37,18 @@ ON_P_VS_AWS/
 
 ## 현재 부하테스트 기준
 
-현재 실행 대상 k6 시나리오는 아래 3개다.
+현재 공식 비교 실험은 `load-test/k6/scripts` 아래 3개 시나리오를 기준으로 한다.
 
-- `shoply-smoke.js`: 로그인, 상품 조회, 통계 API 연결 확인
-- `shoply-order-payment.js`: 주문/결제 API 집중 부하
-- `scenario-1-stable-order-payment.js`: 시나리오 1: 안정적인 평상시 기준선 테스트
+| 시나리오 | 실행 파일 | 최대 VUS | 목적 |
+|---|---|---:|---|
+| 안정 상황 | `scripts/stable-flow.js` | 200 | 평상시 기준선 확인 |
+| 스파이크 / 타임세일 | `scripts/spike-flow.js` | 400 | 순간 집중 부하 확인 |
+| 노드 장애 | `scripts/failover-flow.js` | 200 | 워커 노드 장애 복구 확인 |
 
-현재 계획 중인 실험 시나리오는 아래 3개다.
+공통 사용자 흐름:
 
-| 시나리오 | 목적 | 흐름 |
-|---|---|---|
-| 1. 안정적인 상황 | 평상시 기준선 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제 |
-| 2. 스파이크 | 갑자기 주문이 몰릴 때 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제를 짧은 시간에 증가 |
-| 3. 노드 하나 끄기 | 장애 상황 복구 확인 | 부하 유지 중 워커 노드 1개 종료 |
+```text
+VU별 최초 1회 로그인 -> 토큰 재사용 -> 상품 목록 -> 상품 상세 -> 주문 -> 결제
+```
 
-이전 API 기준의 legacy `scenario-1`부터 `scenario-4`는 현재 API와 맞지 않아 `load-test/k6/deprecated/`에 참고용으로 보관한다.
+`shoply-smoke.js`, `shoply-order-payment.js`, `scenario-1-stable-order-payment.js`는 API 확인 또는 이전 실험용 파일로 보관한다. 이전 API 기준의 legacy `scenario-1`부터 `scenario-4`는 현재 API와 맞지 않아 `load-test/k6/deprecated/`에 참고용으로 보관한다.
