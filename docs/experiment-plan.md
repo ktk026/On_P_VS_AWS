@@ -41,20 +41,25 @@ AWS EKS: HPA + Karpenter 노드 자동 확장
 | HPA current/desired | 원하는 replica와 실제 replica 차이 |
 | CPU / Memory | 노드와 컨테이너 자원 사용량 |
 
-## 현재 k6 시나리오
+## 현재 공식 k6 시나리오
 
-현재 실행 가능한 시나리오는 `load-test/k6` 아래 파일과 `load-test/k6/scripts` 아래 실험용 스크립트다.
+현재 온프레미스와 AWS EKS 비교 실험에서 사용하는 공식 k6 시나리오는 `load-test/k6/scripts` 아래 3개 파일이다.
 
-| 파일 | 목적 |
+| 파일 | 시나리오 | 목적 |
 |---|---|
-| `shoply-smoke.js` | 연결 확인 |
-| `shoply-order-payment.js` | 주문/결제 API 집중 부하 |
-| `scenario-1-stable-order-payment.js` | 시나리오 1: 안정적인 평상시 기준선 테스트 |
-| `scripts/stable-flow.js` | k6 서버 직접 실행용 안정 상황 E2E 테스트 |
-| `scripts/spike-flow.js` | k6 서버 직접 실행용 스파이크 E2E 테스트 |
-| `scripts/failover-flow.js` | k6 서버 직접 실행용 장애 복구 E2E 테스트 |
+| `scripts/stable-flow.js` | 시나리오 1: 안정적인 상황 | 평상시 기준선 확인 |
+| `scripts/spike-flow.js` | 시나리오 2: 스파이크 / 타임세일 | 순간 집중 부하 확인 |
+| `scripts/failover-flow.js` | 시나리오 3: 노드 하나 종료 | 장애 복구 및 복구 속도 확인 |
 
-이전 API 기준의 legacy `scenario-1`부터 `scenario-4`는 현재 API와 맞지 않아 deprecated 처리했다.
+`shoply-smoke.js`, `shoply-order-payment.js`, `scenario-1-stable-order-payment.js`는 API 확인 또는 이전 실험용 파일로 보관한다. 이전 API 기준의 legacy `scenario-1`부터 `scenario-4`는 현재 API와 맞지 않아 deprecated 처리했다.
+
+공통 사용자 흐름:
+
+```text
+VU별 최초 1회 로그인 -> 토큰 재사용 -> 상품 목록 조회 -> 상품 선택 -> 상품 상세 조회 -> 주문 생성 -> 결제
+```
+
+각 VU는 `test1@shoply.com`부터 `test2000@shoply.com`까지의 계정을 자동 배정받는다.
 
 ## 시나리오 1: 안정적인 상황
 
@@ -67,7 +72,6 @@ AWS EKS: HPA + Karpenter 노드 자동 확장
 실행 파일:
 
 ```text
-scenario-1-stable-order-payment.js
 scripts/stable-flow.js
 ```
 
@@ -80,20 +84,23 @@ scripts/stable-flow.js
 - Error Rate
 - Pod CPU/Memory
 
-현재 램프:
+설정:
+
+| 항목 | 값 |
+|---|---:|
+| 상품 수 | 20개 분산 |
+| 최대 부하 | 300 VUS |
+| 총 시간 | 10분 |
+
+램프:
 
 ```text
-1분 50 VU
 1분 100 VU
-1분 150 VU
 1분 200 VU
-1분 250 VU
-2분 300 VU
-2분 300 VU 유지
-1분 0 VU
+1분 300 VU
+5분 300 VU 유지
+2분 0 VU
 ```
-
-k6 서버에서 Docker 이미지를 바로 실행하는 경우에는 `scripts/stable-flow.js`를 사용한다. 이 스크립트는 100 VU에서 시작해 300 VU까지 올린 뒤 300 VU를 유지한다.
 
 ## 시나리오 2: 스파이크
 
@@ -116,6 +123,14 @@ scripts/spike-flow.js
 - HPA current/desired 차이
 - Pending Pod 발생 여부
 - EKS Node Count 증가 여부
+
+설정:
+
+| 항목 | 값 |
+|---|---:|
+| 상품 수 | 3개 집중 |
+| 최대 부하 | 600 VUS |
+| 총 시간 | 8분 |
 
 ## 시나리오 3: 노드 하나 끄기
 
@@ -143,6 +158,35 @@ k6 서버에서 failover-flow.js 실행
 - 주문/결제 실패 건수
 - Pod 재스케줄링 시간
 - EKS Node Count 증가 시점
+
+설정:
+
+| 항목 | 값 |
+|---|---:|
+| 상품 수 | 20개 분산 |
+| 최대 부하 | 400 VUS |
+| 총 시간 | 12분 |
+
+## 한계점 해석 기준
+
+온프레미스 환경에서 단계별 한계점 테스트를 진행한 결과는 다음과 같이 해석한다.
+
+| 구간 | 해석 |
+|---|---|
+| 300 VUS | 안정 구간 |
+| 400 VUS | 한계 접근 시작 |
+| 500 VUS | 한계 직전 |
+| 600 VUS | 한계 도달 |
+
+600 VUS에서는 p95 응답시간이 1초를 초과하고 HTTP 실패율이 1%를 초과하면 온프레미스 환경의 한계 도달 구간으로 판단한다.
+
+## 온프레미스 / AWS EKS 비교 방식
+
+온프레미스와 AWS EKS는 동일한 시나리오, 동일한 상품 수, 동일한 최대 VUS, 동일한 웨이브 패턴으로 테스트한다.
+AWS EKS가 600 VUS에서 안정적으로 동작하더라도 일부러 장애가 발생하도록 설정하지 않는다.
+비교 목적은 같은 조건에서 어느 환경이 더 안정적으로 동작하는지 확인하는 것이다.
+
+AWS EKS가 600 VUS에서도 안정적이라면 이후 AWS EKS에 대해서만 700, 800, 900 VUS 등 추가 한계점 테스트를 진행할 수 있다.
 
 ## 발표 메시지
 

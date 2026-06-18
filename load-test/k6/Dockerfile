@@ -3,6 +3,7 @@ FROM grafana/k6:latest
 WORKDIR /scripts
 
 COPY *.js /scripts/
+COPY scripts/ /scripts/scripts/
 COPY entrypoint.sh /entrypoint.sh
 
 USER root

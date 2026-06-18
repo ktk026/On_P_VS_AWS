@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
-export const BASE_URL = __ENV.BASE_URL || 'http://54.180.167.159';
+export const BASE_URL = __ENV.BASE_URL || 'http://localhost';
 export const ACCOUNT_COUNT = Number(__ENV.ACCOUNT_COUNT || 2000);
 export const TEST_PASSWORD = __ENV.TEST_PASSWORD || 'Test1234!';
 

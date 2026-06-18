@@ -2,48 +2,42 @@
 
 이 디렉토리는 Shoply 부하테스트 시나리오와 k6 Docker 이미지를 관리한다.
 
-## 현재 실행 대상
+## 현재 공식 실험 시나리오
 
-| 파일 | 용도 |
+현재 온프레미스와 AWS EKS 비교 실험에서 사용하는 공식 k6 시나리오는 `scripts/` 디렉토리 아래 3개 파일이다.
+
+| 파일 | 시나리오 | 목적 |
 |---|---|
-| `shoply-smoke.js` | 로그인, 상품 조회, 상품 상세, 통계 API 연결 확인 |
-| `shoply-order-payment.js` | 주문/결제 API 집중 부하테스트 |
-| `scenario-1-stable-order-payment.js` | 시나리오 1: 안정적인 평상시 기준선 테스트 |
-| `scripts/stable-flow.js` | k6 서버 직접 실행용 안정 상황 E2E 테스트 |
-| `scripts/spike-flow.js` | k6 서버 직접 실행용 스파이크 E2E 테스트 |
-| `scripts/failover-flow.js` | k6 서버 직접 실행용 장애 복구 E2E 테스트 |
+| `scripts/stable-flow.js` | 시나리오 1: 안정적인 상황 | 평상시 기준선 확인 |
+| `scripts/spike-flow.js` | 시나리오 2: 스파이크 / 타임세일 | 순간 집중 부하 확인 |
+| `scripts/failover-flow.js` | 시나리오 3: 노드 하나 종료 | 장애 복구 및 복구 속도 확인 |
 
-`deprecated/` 아래 `scenario-1`부터 `scenario-4`는 이전 API 기준으로 작성된 참고용 파일이다. 현재 실험에는 사용하지 않는다.
+`shoply-smoke.js`, `shoply-order-payment.js`, `scenario-1-stable-order-payment.js`는 API 확인 또는 이전 실험용 파일로 보관한다.
+현재 공식 비교 실험은 `scripts/stable-flow.js`, `scripts/spike-flow.js`, `scripts/failover-flow.js`를 기준으로 한다.
+`deprecated/` 아래 `scenario-1`부터 `scenario-4`는 이전 API 기준으로 작성된 참고용 파일이며 현재 실험에는 사용하지 않는다.
 
 ## 실험 시나리오 계획
 
 | 시나리오 | 목적 | 흐름 | 상태 |
 |---|---|---|---|
-| 1. 안정적인 상황 | 평상시 기준선 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제 | `scenario-1-stable-order-payment.js` |
+| 1. 안정적인 상황 | 평상시 기준선 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제 | `scripts/stable-flow.js` |
 | 2. 스파이크 | 갑자기 주문이 몰릴 때 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제를 짧은 시간에 증가 | `scripts/spike-flow.js` |
 | 3. 노드 하나 끄기 | 장애 상황 복구 확인 | 부하 유지 중 워커 노드 1개 종료 | `scripts/failover-flow.js` |
-
-이전 API 기준으로 작성된 legacy `scenario-1`부터 `scenario-4`는 `deprecated/`에 보관한다.
 
 ## 시나리오 선택 기준
 
 | 목적 | 실행 파일 |
 |---|---|
 | 서버 연결 확인 | `shoply-smoke.js` |
-| 주문/결제 처리량 비교 | `shoply-order-payment.js` |
-| 시나리오 1 안정적인 기준선 | `scenario-1-stable-order-payment.js` |
-| k6 서버 직접 실행용 3종 실험 | `scripts/stable-flow.js`, `scripts/spike-flow.js`, `scripts/failover-flow.js` |
-
-`shoply-order-payment.js`는 `VUS`, `DURATION` 환경변수로 부하를 조절한다.
-
-`scenario-1-stable-order-payment.js`는 기본적으로 50 -> 100 -> 150 -> 200 -> 250 -> 300 VU 램프가 정의되어 있다.
-
-고정 VU로 한 단계씩 확인하고 싶으면 `LOAD_PROFILE=constant`를 사용한다.
+| 공식 안정 상황 실험 | `scripts/stable-flow.js` |
+| 공식 스파이크 실험 | `scripts/spike-flow.js` |
+| 공식 장애 복구 실험 | `scripts/failover-flow.js` |
+| 이전 주문/결제 단일 실험 참고 | `shoply-order-payment.js` |
 
 ## k6 서버 직접 실행용 scripts
 
-`scripts/` 아래 파일은 k6 전용 서버에서 `grafana/k6` 이미지를 바로 실행하기 위한 구성이다.
-공통 흐름은 `common-e2e.js`에 모아두고, 각 실험 파일은 부하 패턴만 다르게 둔다.
+`scripts/` 아래 파일은 k6 전용 서버에서 `grafana/k6` 이미지를 바로 실행하기 위한 구성이다. 실제 실험은 이 방식을 기준으로 한다.
+공통 사용자 흐름은 `common-e2e.js`에 모아두고, 각 실험 파일은 부하 패턴만 다르게 둔다.
 
 공통 흐름:
 
@@ -51,11 +45,15 @@
 VU별 최초 1회 로그인 -> 토큰 재사용 -> 상품 목록 -> 상품 상세 -> 주문 -> 결제
 ```
 
-| 파일 | 목적 | 특징 |
-|---|---|---|
-| `scripts/stable-flow.js` | 안정 상황 기준선 | 100 -> 200 -> 300 VU 후 300 VU 유지 |
-| `scripts/spike-flow.js` | 주문 폭증 상황 | 상위 상품에 부하를 몰아 600 VU까지 급증 |
-| `scripts/failover-flow.js` | 노드 종료 복구 확인 | 400 VU 유지 중 워커 노드 1개 종료 관찰 |
+각 VU는 처음 실행될 때 한 번 로그인하고, 이후 반복에서는 같은 토큰을 재사용한다. 이렇게 해야 로그인 API가 과하게 섞이지 않고 상품 조회, 주문, 결제 흐름의 부하를 더 정확하게 볼 수 있다.
+
+| 시나리오 | 상품 수 | 최대 VUS | 총 시간 | 목적 |
+|---|---:|---:|---:|---|
+| 안정적인 상황 | 20개 분산 | 300 VUS | 10분 | 평상시 기준선 확인 |
+| 스파이크 / 타임세일 | 3개 집중 | 600 VUS | 8분 | 순간 집중 부하와 병목 확인 |
+| 노드 하나 종료 | 20개 분산 | 400 VUS | 12분 | 노드 장애 시 복구 속도 확인 |
+
+k6 서버는 Spot 인스턴스를 사용할 수 있으므로 Public IP가 변경될 수 있다. 실행 전 현재 애플리케이션 서버와 Prometheus 서버 주소를 확인하고 `BASE_URL`, `K6_PROMETHEUS_RW_SERVER_URL`에 넣는다.
 
 k6 서버에서 실행 예시:
 
@@ -63,8 +61,8 @@ k6 서버에서 실행 예시:
 cd ~/taegyu-k6
 
 docker run --rm --network host \
-  -e BASE_URL=http://54.180.167.159 \
-  -e K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
+  -e BASE_URL=http://<SHOPLY_TARGET> \
+  -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
   -e ACCOUNT_COUNT=2000 \
   -v "$PWD/scripts:/scripts" \
   grafana/k6 run -o experimental-prometheus-rw /scripts/stable-flow.js
@@ -74,8 +72,8 @@ docker run --rm --network host \
 
 ```bash
 docker run --rm --network host \
-  -e BASE_URL=http://54.180.167.159 \
-  -e K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
+  -e BASE_URL=http://<SHOPLY_TARGET> \
+  -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
   -e ACCOUNT_COUNT=2000 \
   -v "$PWD/scripts:/scripts" \
   grafana/k6 run -o experimental-prometheus-rw /scripts/spike-flow.js
@@ -124,6 +122,8 @@ docker compose build
 
 ## Docker Compose 실행
 
+Docker Compose 방식은 로컬 검증 또는 이전 실험 재현용이다. 실제 온프레미스와 AWS EKS 비교 실험은 위의 k6 서버 `docker run` 방식을 기준으로 한다.
+
 기본 서비스는 `order-payment`이며 기본 시나리오는 `shoply-order-payment.js`다.
 
 ```bash
@@ -137,26 +137,23 @@ DURATION=5m \
 docker compose run --rm order-payment
 ```
 
-시나리오 1 안정적인 상황 테스트:
+Compose로 공식 안정 상황 시나리오를 확인할 때:
 
 ```bash
 BASE_URL=http://<SHOPLY_TARGET> \
 K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
 TEST_RUN_ID=stable-flow-300vus \
-SCENARIO=scenario-1-stable-order-payment.js \
+SCENARIO=scripts/stable-flow.js \
 docker compose run --rm order-payment
 ```
 
-시나리오 1 고정 VU 테스트:
+스파이크 시나리오 참고 실행:
 
 ```bash
 BASE_URL=http://<SHOPLY_TARGET> \
 K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
-TEST_RUN_ID=stable-flow-100vus-5m \
-SCENARIO=scenario-1-stable-order-payment.js \
-LOAD_PROFILE=constant \
-VUS=100 \
-DURATION=5m \
+TEST_RUN_ID=spike-flow \
+SCENARIO=scripts/spike-flow.js \
 docker compose run --rm order-payment
 ```
 
@@ -177,9 +174,9 @@ docker compose --profile scenarios run --rm smoke
 docker compose --profile scenarios run --rm stable-flow
 ```
 
-## 현재 EC2 실행 예시
+## 현재 EC2 실행 절차
 
-최신 EC2 정보 기준 예시는 아래와 같다.
+IP는 Spot 인스턴스 재생성에 따라 바뀔 수 있으므로 문서에 고정하지 않는다. 실행 전에 현재 값을 확인한다.
 
 실행 전 PostgreSQL 서버에서 재고를 초기화한다.
 
@@ -194,49 +191,26 @@ sudo -i
 /home/ubuntu/scripts/capture-loop.sh shoply 30
 ```
 
-부하테스트 서버에서 k6를 실행한다.
+부하테스트 서버에서 공식 안정 상황 시나리오를 실행한다.
 
 ```bash
-cd ~/load-test/k6
+cd ~/taegyu-k6
 
-BASE_URL=http://54.180.167.159 \
-K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
-TEST_RUN_ID=ec2-stable-flow \
-SCENARIO=scenario-1-stable-order-payment.js \
-docker compose run --rm order-payment
+docker run --rm --network host \
+  -e BASE_URL=http://<SHOPLY_TARGET> \
+  -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
+  -e ACCOUNT_COUNT=2000 \
+  -v "$PWD/scripts:/scripts" \
+  grafana/k6 run -o experimental-prometheus-rw /scripts/stable-flow.js
 ```
 
 Smoke test:
 
 ```bash
-BASE_URL=http://54.180.167.159 \
+BASE_URL=http://<SHOPLY_TARGET> \
 SCENARIO=shoply-smoke.js \
 VUS=5 \
 DURATION=30s \
-docker compose run --rm order-payment
-```
-
-시나리오 1 고정 VU 테스트:
-
-```bash
-BASE_URL=http://54.180.167.159 \
-K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
-TEST_RUN_ID=ec2-stable-flow-100vus-5m \
-SCENARIO=scenario-1-stable-order-payment.js \
-LOAD_PROFILE=constant \
-VUS=100 \
-DURATION=5m \
-docker compose run --rm order-payment
-```
-
-주문/결제 API만 100명, 5분 테스트:
-
-```bash
-BASE_URL=http://54.180.167.159 \
-K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
-TEST_RUN_ID=ec2-order-payment-100vus-5m \
-VUS=100 \
-DURATION=5m \
 docker compose run --rm order-payment
 ```
 
@@ -268,42 +242,20 @@ load-test/results/order-payment/order-payment-summary.md
 
 ## 해석 기준
 
-`scenario-1-stable-order-payment.js`는 아래 흐름으로 평상시 기준선을 먼저 확인하고, 어느 구간부터 불안정해지는지 함께 관찰한다.
+온프레미스 환경에서 단계별 한계점 테스트를 진행한 결과는 다음과 같이 해석한다.
 
-```text
-50 VU → 100 VU → 150 VU → 200 VU → 250 VU → 300 VU 유지 → 0 VU
-```
+| 구간 | 해석 |
+|---|---|
+| 300 VUS | 안정 구간 |
+| 400 VUS | 한계 접근 시작 |
+| 500 VUS | 한계 직전 |
+| 600 VUS | 한계 도달 |
 
-해석 예시:
+600 VUS에서는 p95 응답시간이 1초를 초과하고 HTTP 실패율이 1%를 초과하면 온프레미스 환경의 한계 도달 구간으로 판단한다.
 
-- 200 VU까지 안정적이면 비교 기준 부하로 사용
-- 250 VU부터 P95 latency가 증가하면 성능 한계 진입 구간
-- 300 VU부터 Pending Pod가 발생하면 클러스터 자원 한계 구간
-- 위 패턴이면 한계점은 250~300 VU 사이로 판단
+온프레미스와 AWS EKS는 동일한 시나리오, 동일한 상품 수, 동일한 최대 VUS, 동일한 웨이브 패턴으로 테스트한다. AWS EKS가 600 VUS에서 안정적으로 동작하더라도 일부러 장애가 발생하도록 설정하지 않는다. 비교 목적은 같은 조건에서 어느 환경이 더 안정적으로 동작하는지 확인하는 것이다.
 
-별도 고정 VU 테스트로 한계점을 좁힐 때는 아래 순서로 진행한다.
-
-```text
-10 VU, 1분
-50 VU, 3분
-100 VU, 5분
-200 VU, 5분
-300 VU, 5분
-500 VU, 5분
-```
-
-300 VU는 안정적이고 500 VU에서 불안정하면 바로 1000 VU로 가지 않고 350, 400, 450 VU를 추가 확인한다.
-
-예시:
-
-```bash
-LOAD_PROFILE=constant VUS=10 DURATION=1m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
-LOAD_PROFILE=constant VUS=50 DURATION=3m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
-LOAD_PROFILE=constant VUS=100 DURATION=5m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
-LOAD_PROFILE=constant VUS=200 DURATION=5m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
-LOAD_PROFILE=constant VUS=300 DURATION=5m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
-LOAD_PROFILE=constant VUS=500 DURATION=5m SCENARIO=scenario-1-stable-order-payment.js docker compose run --rm order-payment
-```
+AWS EKS가 600 VUS에서도 안정적이라면 이후 AWS EKS에 대해서만 700, 800, 900 VUS 등 추가 한계점 테스트를 진행할 수 있다.
 
 ## 주의
 
