@@ -49,9 +49,9 @@ VU별 최초 1회 로그인 -> 토큰 재사용 -> 상품 목록 -> 상품 상�
 
 | 시나리오 | 상품 수 | 최대 VUS | 총 시간 | 목적 |
 |---|---:|---:|---:|---|
-| 안정적인 상황 | 20개 분산 | 300 VUS | 10분 | 평상시 기준선 확인 |
-| 스파이크 / 타임세일 | 3개 집중 | 600 VUS | 8분 | 순간 집중 부하와 병목 확인 |
-| 노드 하나 종료 | 20개 분산 | 400 VUS | 12분 | 노드 장애 시 복구 속도 확인 |
+| 안정적인 상황 | 20개 분산 | 200 VUS | 10분 | 평상시 기준선 확인 |
+| 스파이크 / 타임세일 | 3개 집중 | 400 VUS | 8분 | 순간 집중 부하와 병목 확인 |
+| 노드 하나 종료 | 20개 분산 | 200 VUS | 12분 | 노드 장애 시 복구 속도 확인 |
 
 k6 서버는 Spot 인스턴스를 사용할 수 있으므로 Public IP가 변경될 수 있다. 실행 전 현재 애플리케이션 서버와 Prometheus 서버 주소를 확인하고 `BASE_URL`, `K6_PROMETHEUS_RW_SERVER_URL`에 넣는다.
 
@@ -79,7 +79,7 @@ docker run --rm --network host \
   grafana/k6 run -o experimental-prometheus-rw /scripts/spike-flow.js
 ```
 
-장애 복구 테스트는 `failover-flow.js`를 실행한 뒤, 400 VU 유지 구간에서 워커 노드 1개를 종료한다.
+장애 복구 테스트는 `failover-flow.js`를 실행한 뒤, 200 VU 유지 구간의 5분 시점에서 워커 노드 1개를 종료한다.
 
 ## 테스트 계정 사용 방식
 
@@ -142,7 +142,7 @@ Compose로 공식 안정 상황 시나리오를 확인할 때:
 ```bash
 BASE_URL=http://<SHOPLY_TARGET> \
 K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
-TEST_RUN_ID=stable-flow-300vus \
+TEST_RUN_ID=stable-flow-200vus \
 SCENARIO=scripts/stable-flow.js \
 docker compose run --rm order-payment
 ```
@@ -246,16 +246,18 @@ load-test/results/order-payment/order-payment-summary.md
 
 | 구간 | 해석 |
 |---|---|
-| 300 VUS | 안정 구간 |
-| 400 VUS | 한계 접근 시작 |
-| 500 VUS | 한계 직전 |
-| 600 VUS | 한계 도달 |
+| 200 VUS | 안정 구간 |
+| 300 VUS | 불안정 시작 |
+| 400 VUS | 한계 접근 |
+| 600 VUS | 한계 초과 |
 
-600 VUS에서는 p95 응답시간이 1초를 초과하고 HTTP 실패율이 1%를 초과하면 온프레미스 환경의 한계 도달 구간으로 판단한다.
+200 VUS 테스트에서는 p95 응답시간, 실패율, worker CPU, Pending Pod가 안정적이었다. 반면 300 VUS부터 Pending Pod가 발생하고 worker CPU가 크게 상승했으므로, 공식 안정 시나리오는 200 VUS로 조정한다.
 
-온프레미스와 AWS EKS는 동일한 시나리오, 동일한 상품 수, 동일한 최대 VUS, 동일한 웨이브 패턴으로 테스트한다. AWS EKS가 600 VUS에서 안정적으로 동작하더라도 일부러 장애가 발생하도록 설정하지 않는다. 비교 목적은 같은 조건에서 어느 환경이 더 안정적으로 동작하는지 확인하는 것이다.
+스파이크 시나리오는 안정 기준선의 약 2배인 400 VUS를 사용한다. 600 VUS는 스파이크라기보다 한계 초과/장애 유도 테스트가 될 가능성이 커서 공식 스파이크 시나리오에서는 제외한다.
 
-AWS EKS가 600 VUS에서도 안정적이라면 이후 AWS EKS에 대해서만 700, 800, 900 VUS 등 추가 한계점 테스트를 진행할 수 있다.
+노드 장애 시나리오는 부하 한계가 아니라 복구 여부를 보기 위한 실험이므로, 안정 부하인 200 VUS 유지 중 워커 노드 1대를 종료한다. 이렇게 해야 부하 자체 때문에 터진 것인지, 노드 장애 때문에 흔들린 것인지 구분할 수 있다.
+
+온프레미스와 AWS EKS는 동일한 시나리오, 동일한 상품 수, 동일한 최대 VUS, 동일한 웨이브 패턴으로 테스트한다. AWS EKS가 공식 시나리오에서 안정적으로 동작하면 이후 AWS EKS에 대해서만 500, 600 VUS 등 추가 한계점 테스트를 진행할 수 있다.
 
 ## 주의
 
