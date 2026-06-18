@@ -9,6 +9,9 @@
 | `shoply-smoke.js` | 로그인, 상품 조회, 상품 상세, 통계 API 연결 확인 |
 | `shoply-order-payment.js` | 주문/결제 API 집중 부하테스트 |
 | `scenario-1-stable-order-payment.js` | 시나리오 1: 안정적인 평상시 기준선 테스트 |
+| `scripts/stable-flow.js` | k6 서버 직접 실행용 안정 상황 E2E 테스트 |
+| `scripts/spike-flow.js` | k6 서버 직접 실행용 스파이크 E2E 테스트 |
+| `scripts/failover-flow.js` | k6 서버 직접 실행용 장애 복구 E2E 테스트 |
 
 `deprecated/` 아래 `scenario-1`부터 `scenario-4`는 이전 API 기준으로 작성된 참고용 파일이다. 현재 실험에는 사용하지 않는다.
 
@@ -17,8 +20,8 @@
 | 시나리오 | 목적 | 흐름 | 상태 |
 |---|---|---|---|
 | 1. 안정적인 상황 | 평상시 기준선 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제 | `scenario-1-stable-order-payment.js` |
-| 2. 스파이크 | 갑자기 주문이 몰릴 때 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제를 짧은 시간에 증가 | 작성 예정 |
-| 3. 노드 하나 끄기 | 장애 상황 복구 확인 | 부하 유지 중 워커 노드 1개 종료 | 작성 예정 |
+| 2. 스파이크 | 갑자기 주문이 몰릴 때 확인 | 로그인 -> 상품 조회 -> 주문 -> 결제를 짧은 시간에 증가 | `scripts/spike-flow.js` |
+| 3. 노드 하나 끄기 | 장애 상황 복구 확인 | 부하 유지 중 워커 노드 1개 종료 | `scripts/failover-flow.js` |
 
 이전 API 기준으로 작성된 legacy `scenario-1`부터 `scenario-4`는 `deprecated/`에 보관한다.
 
@@ -29,12 +32,56 @@
 | 서버 연결 확인 | `shoply-smoke.js` |
 | 주문/결제 처리량 비교 | `shoply-order-payment.js` |
 | 시나리오 1 안정적인 기준선 | `scenario-1-stable-order-payment.js` |
+| k6 서버 직접 실행용 3종 실험 | `scripts/stable-flow.js`, `scripts/spike-flow.js`, `scripts/failover-flow.js` |
 
 `shoply-order-payment.js`는 `VUS`, `DURATION` 환경변수로 부하를 조절한다.
 
 `scenario-1-stable-order-payment.js`는 기본적으로 50 -> 100 -> 150 -> 200 -> 250 -> 300 VU 램프가 정의되어 있다.
 
 고정 VU로 한 단계씩 확인하고 싶으면 `LOAD_PROFILE=constant`를 사용한다.
+
+## k6 서버 직접 실행용 scripts
+
+`scripts/` 아래 파일은 k6 전용 서버에서 `grafana/k6` 이미지를 바로 실행하기 위한 구성이다.
+공통 흐름은 `common-e2e.js`에 모아두고, 각 실험 파일은 부하 패턴만 다르게 둔다.
+
+공통 흐름:
+
+```text
+VU별 최초 1회 로그인 -> 토큰 재사용 -> 상품 목록 -> 상품 상세 -> 주문 -> 결제
+```
+
+| 파일 | 목적 | 특징 |
+|---|---|---|
+| `scripts/stable-flow.js` | 안정 상황 기준선 | 100 -> 200 -> 300 VU 후 300 VU 유지 |
+| `scripts/spike-flow.js` | 주문 폭증 상황 | 상위 상품에 부하를 몰아 600 VU까지 급증 |
+| `scripts/failover-flow.js` | 노드 종료 복구 확인 | 400 VU 유지 중 워커 노드 1개 종료 관찰 |
+
+k6 서버에서 실행 예시:
+
+```bash
+cd ~/taegyu-k6
+
+docker run --rm --network host \
+  -e BASE_URL=http://54.180.167.159 \
+  -e K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
+  -e ACCOUNT_COUNT=2000 \
+  -v "$PWD/scripts:/scripts" \
+  grafana/k6 run -o experimental-prometheus-rw /scripts/stable-flow.js
+```
+
+스파이크 테스트:
+
+```bash
+docker run --rm --network host \
+  -e BASE_URL=http://54.180.167.159 \
+  -e K6_PROMETHEUS_RW_SERVER_URL=http://54.180.138.196:9090/api/v1/write \
+  -e ACCOUNT_COUNT=2000 \
+  -v "$PWD/scripts:/scripts" \
+  grafana/k6 run -o experimental-prometheus-rw /scripts/spike-flow.js
+```
+
+장애 복구 테스트는 `failover-flow.js`를 실행한 뒤, 400 VU 유지 구간에서 워커 노드 1개를 종료한다.
 
 ## 테스트 계정 사용 방식
 

@@ -43,13 +43,16 @@ AWS EKS: HPA + Karpenter 노드 자동 확장
 
 ## 현재 k6 시나리오
 
-현재 실행 가능한 시나리오는 `load-test/k6` 아래 3개다.
+현재 실행 가능한 시나리오는 `load-test/k6` 아래 파일과 `load-test/k6/scripts` 아래 실험용 스크립트다.
 
 | 파일 | 목적 |
 |---|---|
 | `shoply-smoke.js` | 연결 확인 |
 | `shoply-order-payment.js` | 주문/결제 API 집중 부하 |
 | `scenario-1-stable-order-payment.js` | 시나리오 1: 안정적인 평상시 기준선 테스트 |
+| `scripts/stable-flow.js` | k6 서버 직접 실행용 안정 상황 E2E 테스트 |
+| `scripts/spike-flow.js` | k6 서버 직접 실행용 스파이크 E2E 테스트 |
+| `scripts/failover-flow.js` | k6 서버 직접 실행용 장애 복구 E2E 테스트 |
 
 이전 API 기준의 legacy `scenario-1`부터 `scenario-4`는 현재 API와 맞지 않아 deprecated 처리했다.
 
@@ -65,6 +68,7 @@ AWS EKS: HPA + Karpenter 노드 자동 확장
 
 ```text
 scenario-1-stable-order-payment.js
+scripts/stable-flow.js
 ```
 
 주요 확인:
@@ -89,6 +93,8 @@ scenario-1-stable-order-payment.js
 1분 0 VU
 ```
 
+k6 서버에서 Docker 이미지를 바로 실행하는 경우에는 `scripts/stable-flow.js`를 사용한다. 이 스크립트는 100 VU에서 시작해 300 VU까지 올린 뒤 300 VU를 유지한다.
+
 ## 시나리오 2: 스파이크
 
 목적:
@@ -100,7 +106,7 @@ scenario-1-stable-order-payment.js
 실행 파일:
 
 ```text
-작성 예정
+scripts/spike-flow.js
 ```
 
 주요 확인:
@@ -114,6 +120,21 @@ scenario-1-stable-order-payment.js
 ## 시나리오 3: 노드 하나 끄기
 
 장애 복구 테스트는 현재 deprecated 시나리오를 그대로 쓰지 않는다. 시나리오 1의 실제 사용자 흐름을 기반으로 중간 부하를 유지한 뒤, 워커 노드 하나를 중지하는 방식으로 진행한다.
+
+실행 파일:
+
+```text
+scripts/failover-flow.js
+```
+
+진행 방식:
+
+```text
+k6 서버에서 failover-flow.js 실행
+-> 400 VU 유지 구간 진입 확인
+-> 워커 노드 1개 중지
+-> Grafana/Prometheus/Event log로 복구 과정 관찰
+```
 
 확인 항목:
 
