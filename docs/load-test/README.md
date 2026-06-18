@@ -1,4 +1,4 @@
-# Shoply Load Test Work Summary
+# Shoply 부하테스트 및 모니터링 실험 정리
 
 이 문서는 Shoply 프로젝트에서 진행한 k6 부하테스트, 모니터링 구성, 현재까지 확보한 결과, 앞으로 해야 할 일을 한 번에 보기 위한 정리 문서다.
 
@@ -41,7 +41,7 @@ GHCR 사용 목적:
 
 ### Argo CD 배포 구조 확인
 
-Argo CD용 Kubernetes 매니페스트와 Kustomize 구조를 정리했다.
+Argo CD에서 사용할 Kubernetes 매니페스트 구조를 확인했다.
 
 확인한 내용:
 
@@ -51,7 +51,7 @@ Argo CD용 Kubernetes 매니페스트와 Kustomize 구조를 정리했다.
 - GHCR 인증 문제
 - 이미지 아키텍처 문제
 
-Argo CD는 최종 배포 자동화의 기준이 되며, 실제 온프레미스 / EKS 클러스터 준비 후 다시 연결 테스트가 필요하다.
+공통 리소스와 온프레미스 전용 리소스 경로를 분리했으며, 실제 Argo CD 자동 배포를 위해서는 대상 클러스터 등록, Application 경로, Kustomize 렌더링 결과를 최종 확인해야 한다.
 
 ### k6 부하테스트 환경 구성
 
@@ -115,8 +115,10 @@ VU별 최초 1회 로그인
 VU 1   -> test1@shoply.com
 VU 2   -> test2@shoply.com
 VU 200 -> test200@shoply.com
+VU 400 -> test400@shoply.com
 ```
 
+각 VU는 VU 번호에 맞는 테스트 계정을 사용한다. `ACCOUNT_COUNT`를 초과하는 경우에는 계정 번호를 순환해서 사용한다.
 각 VU는 최초 1회만 로그인하고, 이후 반복에서는 발급받은 JWT 토큰을 재사용한다.
 
 ### 온프레미스 한계점 측정
@@ -135,9 +137,11 @@ VU 200 -> test200@shoply.com
 해석:
 
 - 200 VUS에서는 p95 응답시간, 실패율, worker CPU, Pending Pod가 안정적이었다.
-- 300 VUS부터 Pending Pod와 worker CPU 상승이 관찰되어 불안정 구간으로 본다.
+- 300 VUS는 k6 지표만 보면 p95 응답시간과 실패율이 비교적 안정적이었지만, Grafana에서 Pending Pod와 worker CPU 상승이 관찰되어 Kubernetes 리소스 관점에서는 불안정 시작 구간으로 본다.
 - 400 VUS는 안정 기준선의 약 2배로, 스파이크 시나리오에 사용한다.
 - 600 VUS는 스파이크 시나리오라기보다 한계 초과/장애 유도에 가까워 공식 시나리오에서는 제외한다.
+
+따라서 공식 안정 시나리오는 더 보수적으로 200 VUS를 기준 부하로 설정한다. 한계점 측정값은 공식 비교 시나리오와 분리해서 해석한다.
 
 ### 모니터링과 증거 자료 확보
 
@@ -174,6 +178,13 @@ Grafana와 Prometheus에서 아래 지표를 확인했다.
 | 안정 상황 | 평상시 기준선 비교 | 20개 분산 | 200 VUS | 10분 |
 | 스파이크 / 타임세일 | 순간 집중 부하 비교 | 3개 집중 | 400 VUS | 8분 |
 | 노드 장애 | 장애 복구 속도 비교 | 20개 분산 | 200 VUS | 12분 |
+
+공식 시나리오는 온프레미스 한계점 측정 결과를 바탕으로 설정했다.
+
+- 안정 상황은 200 VUS를 기준 부하로 사용한다.
+- 스파이크는 안정 기준선의 약 2배인 400 VUS까지 급격히 증가시킨다.
+- 노드 장애는 부하 한계가 아니라 복구 여부를 확인해야 하므로 안정 부하인 200 VUS에서 수행한다.
+- 600 VUS는 온프레미스 한계 초과 구간으로 확인되어 공식 비교 시나리오에서는 제외하고 별도 한계점 측정 결과로 활용한다.
 
 ### 시나리오 1: 안정 상황
 
@@ -258,6 +269,7 @@ docker run --rm --network host \
   -e BASE_URL=http://<SHOPLY_TARGET> \
   -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
   -e ACCOUNT_COUNT=2000 \
+  -e TEST_PASSWORD='Test1234!' \
   -v "$PWD/scripts:/scripts" \
   grafana/k6 run -o experimental-prometheus-rw /scripts/stable-flow.js
 ```
@@ -269,6 +281,7 @@ docker run --rm --network host \
   -e BASE_URL=http://<SHOPLY_TARGET> \
   -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
   -e ACCOUNT_COUNT=2000 \
+  -e TEST_PASSWORD='Test1234!' \
   -v "$PWD/scripts:/scripts" \
   grafana/k6 run -o experimental-prometheus-rw /scripts/spike-flow.js
 ```
@@ -280,6 +293,7 @@ docker run --rm --network host \
   -e BASE_URL=http://<SHOPLY_TARGET> \
   -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
   -e ACCOUNT_COUNT=2000 \
+  -e TEST_PASSWORD='Test1234!' \
   -v "$PWD/scripts:/scripts" \
   grafana/k6 run -o experimental-prometheus-rw /scripts/failover-flow.js
 ```
@@ -385,7 +399,7 @@ PPT에는 온프레미스와 AWS EKS를 같은 지표로 비교한다.
 | 스파이크 실패율 | 측정값 | 측정값 |
 | Pending Pod | 측정값 | 측정값 |
 | 복구 시간 | 측정값 | 측정값 |
-| 노드 확장 여부 | 고정 노드 | Karpenter 확인 |
+| 노드 확장 여부 | 고정 노드 | EKS 노드그룹 / 오토스케일링 여부 확인 |
 
 발표 핵심 메시지:
 
@@ -399,7 +413,7 @@ PPT에는 온프레미스와 AWS EKS를 같은 지표로 비교한다.
 
 현재 CI/CD 쪽은 GitHub Actions와 GHCR 기반으로 Docker 이미지 빌드/Push 구조를 잡았고, 부하테스트는 k6로 로그인, 상품 조회, 주문, 결제까지 이어지는 E2E 시나리오를 구성했다.
 
-온프레미스 환경에서는 단계별 한계점 테스트를 진행했고, 200 VUS를 안정 구간으로 판단했다. 300 VUS부터는 불안정 징후가 보였고, 600 VUS는 한계 초과 구간으로 보아 공식 시나리오에서는 제외했다.
+온프레미스 환경에서는 단계별 한계점 테스트를 진행했고, 200 VUS를 공식 안정 기준으로 판단했다. 300 VUS는 k6 지표만 보면 비교적 안정적이었지만 Pending Pod와 worker CPU 상승이 관찰되어 Kubernetes 리소스 관점에서는 불안정 시작 구간으로 보았다. 600 VUS는 한계 초과 구간으로 보아 공식 시나리오에서는 제외했다.
 
 최종 비교 시나리오는 안정 상황 200 VUS, 스파이크 400 VUS, 노드 장애 200 VUS 유지 중 워커 노드 1대 종료로 정리했다.
 
