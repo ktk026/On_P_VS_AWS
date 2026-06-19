@@ -55,7 +55,97 @@ VU별 최초 1회 로그인 -> 토큰 재사용 -> 상품 목록 -> 상품 상�
 
 k6 서버는 Spot 인스턴스를 사용할 수 있으므로 Public IP가 변경될 수 있다. 실행 전 현재 애플리케이션 서버와 Prometheus 서버 주소를 확인하고 `BASE_URL`, `K6_PROMETHEUS_RW_SERVER_URL`에 넣는다.
 
-k6 서버에서 실행 예시:
+## 긴 docker run 명령 분석
+
+기존 실행 명령은 아래 정보를 한 번에 넣기 때문에 길다.
+
+```bash
+BASE_URL=http://<SHOPLY_TARGET> \
+ACCOUNT_COUNT=2000 \
+TEST_PASSWORD='Test1234!' \
+K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
+docker run --rm --network host \
+  -v "$PWD/scripts:/scripts" \
+  -e BASE_URL \
+  -e ACCOUNT_COUNT \
+  -e TEST_PASSWORD \
+  -e K6_PROMETHEUS_RW_SERVER_URL \
+  -e K6_PROMETHEUS_RW_TREND_STATS=p\(50\),p\(90\),p\(95\),p\(99\) \
+  grafana/k6 run -o experimental-prometheus-rw /scripts/stable-flow.js
+```
+
+각 항목의 의미:
+
+| 항목 | 의미 |
+|---|---|
+| `BASE_URL` | 부하를 줄 Shoply 애플리케이션 주소 |
+| `ACCOUNT_COUNT` | 사용할 테스트 계정 수 |
+| `TEST_PASSWORD` | 테스트 계정 공통 비밀번호 |
+| `K6_PROMETHEUS_RW_SERVER_URL` | k6 결과를 보낼 Prometheus remote write 주소 |
+| `--network host` | k6 컨테이너가 서버 네트워크를 그대로 사용 |
+| `-v "$PWD/scripts:/scripts"` | 로컬 `scripts` 폴더를 컨테이너 `/scripts`로 연결 |
+| `K6_PROMETHEUS_RW_TREND_STATS` | Prometheus에 p50/p90/p95/p99 지표를 같이 전송 |
+| `-o experimental-prometheus-rw` | k6 결과를 Prometheus remote write로 출력 |
+| `/scripts/stable-flow.js` | 실행할 k6 시나리오 파일 |
+
+주의:
+
+- `--out`이 아니라 `-o` 또는 `--out`을 사용한다.
+- 복사 과정에서 `—out`처럼 긴 대시가 들어가면 k6가 옵션을 인식하지 못한다.
+- Prometheus URL은 `/api/v1/write`까지 포함해야 한다.
+
+## 짧은 실행 방식
+
+긴 `docker run` 명령 대신 `run-k6.sh`를 사용한다.
+
+서버 구조:
+
+```text
+~/taegyu-k6/
+├── .env
+├── k6.env.example
+├── run-k6.sh
+└── scripts/
+    ├── common-e2e.js
+    ├── stable-flow.js
+    ├── spike-flow.js
+    └── failover-flow.js
+```
+
+처음 한 번만 `.env`를 만든다.
+
+```bash
+cd ~/taegyu-k6
+cp k6.env.example .env
+vi .env
+```
+
+`.env` 예시:
+
+```text
+BASE_URL=http://<SHOPLY_TARGET>
+PROMETHEUS_URL=http://<PROMETHEUS_IP>:9090/api/v1/write
+ACCOUNT_COUNT=2000
+TEST_PASSWORD=Test1234!
+```
+
+실행:
+
+```bash
+./run-k6.sh stable
+./run-k6.sh spike
+./run-k6.sh failover
+```
+
+각 명령의 의미:
+
+| 명령 | 실행 시나리오 |
+|---|---|
+| `./run-k6.sh stable` | 안정 상황 200 VUS |
+| `./run-k6.sh spike` | 스파이크 / 타임세일 400 VUS |
+| `./run-k6.sh failover` | 노드 장애 200 VUS |
+
+k6 서버에서 직접 `docker run`으로 실행하는 예시:
 
 ```bash
 cd ~/taegyu-k6
@@ -64,6 +154,7 @@ docker run --rm --network host \
   -e BASE_URL=http://<SHOPLY_TARGET> \
   -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
   -e ACCOUNT_COUNT=2000 \
+  -e TEST_PASSWORD='Test1234!' \
   -v "$PWD/scripts:/scripts" \
   grafana/k6 run -o experimental-prometheus-rw /scripts/stable-flow.js
 ```
@@ -75,6 +166,7 @@ docker run --rm --network host \
   -e BASE_URL=http://<SHOPLY_TARGET> \
   -e K6_PROMETHEUS_RW_SERVER_URL=http://<PROMETHEUS_IP>:9090/api/v1/write \
   -e ACCOUNT_COUNT=2000 \
+  -e TEST_PASSWORD='Test1234!' \
   -v "$PWD/scripts:/scripts" \
   grafana/k6 run -o experimental-prometheus-rw /scripts/spike-flow.js
 ```

@@ -260,7 +260,25 @@ load-test/k6/scripts/failover-flow.js
 
 ## 실행 예시
 
-k6 서버에서 안정 상황 시나리오 실행:
+k6 서버에서는 긴 `docker run` 명령 대신 `run-k6.sh`를 사용한다.
+
+처음 한 번만 `.env`를 만든다.
+
+```bash
+cd ~/taegyu-k6
+cp k6.env.example .env
+vi .env
+```
+
+이후 실행:
+
+```bash
+./run-k6.sh stable
+./run-k6.sh spike
+./run-k6.sh failover
+```
+
+직접 `docker run`으로 안정 상황 시나리오를 실행할 수도 있다.
 
 ```bash
 cd ~/taegyu-k6
