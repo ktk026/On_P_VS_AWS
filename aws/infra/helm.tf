@@ -9,6 +9,8 @@ resource "null_resource" "helm_repo_update" {
       helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
       helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx || true
       helm repo add bitnami https://charts.bitnami.com/bitnami || true
+      helm repo add grafana https://grafana.github.io/helm-charts || true
+      helm repo add deliveryhero https://charts.deliveryhero.io || true
       helm repo update
     EOT
   }
@@ -57,9 +59,7 @@ resource "helm_release" "monitoring_exporters" {
   chart      = "kube-prometheus-stack"
   namespace  = "ops"
 
-  values = [
-    "${file("${path.module}/values.yaml")}"
-  ]
+  values = ["${file("${path.module}/values/values.yaml")}"]
 
   depends_on = [aws_eks_node_group.ops, aws_eks_addon.vpc_cni, kubernetes_namespace.ops]
   
@@ -95,28 +95,30 @@ resource "helm_release" "karpenter" {
 
 
 resource "helm_release" "event_exporter" {
-  name      = "event-exporter"
-  chart     = "bitnami/kubernetes-event-exporter"
-  version   = "3.6.3"
-  namespace = "ops"
+  name             = "event-exporter"
+  repository       = "https://charts.deliveryhero.io"
+  chart            = "k8s-event-logger"
+  namespace        = "kube-system"
+  values = [file("${path.module}/values/event-exporter.yaml")]
 
-  values = [
-    <<EOF
-image:
-  registry: docker.io
-  repository: bitnamilegacy/kubernetes-event-exporter
-  tag: 1.7.0-debian-12-r46
+  depends_on = [kubernetes_namespace.ops, aws_eks_node_group.ops]
+}
 
-nodeSelector:
-  role: ops
 
-tolerations:
-  - key: "role"
-    operator: "Equal"
-    value: "ops"
-    effect: "NoSchedule"
-EOF
-  ]
+
+resource "kubectl_manifest" "cadvisor" {
+  yaml_body = file("${path.module}/values/cadvisor.yaml")
+
+  depends_on = [kubernetes_namespace.ops, aws_eks_node_group.ops]
+}
+
+
+resource "helm_release" "promtail" {
+  name       = "promtail"
+  repository = "https://grafana.github.io/helm-charts"
+  chart      = "promtail"
+  namespace  = "kube-system"
+  values     = [file("${path.module}/values/promtail.yaml")]
 
   depends_on = [kubernetes_namespace.ops, aws_eks_node_group.ops]
 }

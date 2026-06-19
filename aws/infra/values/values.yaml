@@ -1,0 +1,17 @@
+nodeExporter:
+  enabled: true
+  nodeSelector: {role: ops}
+  tolerations:
+    - { key: "role", operator: "Equal", value: "ops", effect: "NoSchedule" }
+
+
+kubeStateMetrics: 
+  enabled: true
+  nodeSelector: { role: ops }
+  tolerations:
+    - { key: "role", operator: "Equal", value: "ops", effect: "NoSchedule" }
+
+
+grafana: { enabled: false }
+prometheus: { enabled: false }
+alertmanager: { enabled: false }

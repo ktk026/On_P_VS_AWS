@@ -11,15 +11,15 @@ resource "aws_security_group_rule" "egress_all_k6" {
   from_port                = 0
   to_port                  = 0
   protocol                 = "-1"
-  source_security_group_id = aws_security_group.eks_worker_sg.id
+  cidr_blocks              = ["0.0.0.0/0"]
 }
 
 
-resource "aws_security_group_rule" "ingress_ssh" {
+resource "aws_security_group_rule" "ingress_ssh_k6" {
   type              = "ingress"
   security_group_id = aws_security_group.k6_sg.id
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
+  cidr_blocks       = var.my_ips
 }

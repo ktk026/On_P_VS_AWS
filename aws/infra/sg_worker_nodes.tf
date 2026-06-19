@@ -69,7 +69,7 @@ resource "aws_security_group_rule" "ingress_monitoring_api" {
   from_port         = 8080
   to_port           = 8080
   protocol          = "tcp"
-  cidr_blocks       = var.monitoring_server_ips
+  cidr_blocks       = var.monitoring_server_cidr
 }
 resource "aws_security_group_rule" "ingress_monitoring_services" {
   type              = "ingress"
@@ -77,7 +77,7 @@ resource "aws_security_group_rule" "ingress_monitoring_services" {
   from_port         = 4001
   to_port           = 4005
   protocol          = "tcp"
-  cidr_blocks       = var.monitoring_server_ips
+  cidr_blocks       = var.monitoring_server_cidr
 }
 resource "aws_security_group_rule" "ingress_k6" {
   type                     = "ingress"
@@ -94,7 +94,7 @@ resource "aws_security_group_rule" "ingress_monitoring" {
   from_port         = 9106
   to_port           = 9106
   protocol          = "tcp"
-  cidr_blocks       = var.monitoring_server_ips
+  cidr_blocks       = var.monitoring_server_cidr
 }
 
 

@@ -11,11 +11,6 @@ variable "db_password" {
   default   = "postgres"
 }
 
-variable "my_ips" {
-  type    = list(string)
-  default = ["106.248.40.229/32"]
-}
-
 variable "k8s_version" {
   default = "1.34"
 }
@@ -24,7 +19,24 @@ variable "key_name" {
   default = "key"
 }
 
-variable "monitoring_server_ips" {
+
+variable "eks_allow_ips" {
+  type    = list(string)
+  default = ["3.38.190.237/32", "106.248.40.229/32", "0.0.0.0/0"]
+}
+
+
+variable "monitoring_server_cidr" {
+  type    = list(string)
+  default = ["106.248.40.229/32"]
+}
+
+variable "monitoring_server_ip" {
+  type    = string
+  default = "106.248.40.229"
+}
+
+variable "my_ips" {
   type    = list(string)
   default = ["106.248.40.229/32"]
 }

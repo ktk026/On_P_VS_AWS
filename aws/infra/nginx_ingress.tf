@@ -19,3 +19,17 @@ resource "kubernetes_service_v1" "nginx_service" {
 
   depends_on = [helm_release.ingress_nginx]
 }
+
+
+data "kubernetes_service" "ingress_nginx" {
+  metadata {
+    name      = "ingress-nginx-controller"
+    namespace = "ingress-nginx"
+  }
+  
+  depends_on = [helm_release.ingress_nginx]
+}
+
+locals {
+  base_url = "http://${data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].hostname}"
+}

@@ -1,23 +1,12 @@
-resource "aws_network_interface" "redis_nic" {
-  subnet_id       = aws_subnet.public_2a.id
-  security_groups = [aws_security_group.redis_sg.id]
-  private_ips     = ["10.0.1.141"]
-}
-resource "aws_eip" "redis_eip" {
-  network_interface = aws_network_interface.redis_nic.id
-  vpc               = true
-  depends_on = [aws_network_interface.redis_nic]
-}
-
 resource "aws_instance" "redis" {
-  ami                         = "ami-0d1f572dd6c60329d"
+  ami                         = data.aws_ssm_parameter.instance_ubuntu_ami.value
   instance_type               = "t2.small"
   key_name                    = var.key_name
 
-  network_interface {
-    network_interface_id = aws_network_interface.redis_nic.id
-    device_index         = 0
-  }
+  subnet_id                   = aws_subnet.public_2a.id
+  vpc_security_group_ids      = [aws_security_group.redis_sg.id]
+  
+  private_ip                  = "10.0.1.141"
 
   user_data = base64encode(<<-EOF
     #!/bin/bash

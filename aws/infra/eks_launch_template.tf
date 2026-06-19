@@ -1,7 +1,3 @@
-data "aws_ssm_parameter" "ubuntu_eks_ami" {
-  name = "/aws/service/canonical/ubuntu/eks/24.04/${var.k8s_version}/stable/current/amd64/hvm/ebs-gp3/ami-id"
-}
-
 locals {
   eks_node_user_data = <<-EOT
     #!/bin/bash
@@ -32,7 +28,7 @@ locals {
 
 resource "aws_launch_template" "eks_api_nodes_template" {
   name_prefix   = "eks-api-node-"
-  image_id      = data.aws_ssm_parameter.ubuntu_eks_ami.value
+  image_id      = data.aws_ssm_parameter.eks_ubuntu_ami.value
   instance_type = "t3.medium"
   key_name      = var.key_name
 
@@ -55,7 +51,7 @@ resource "aws_launch_template" "eks_api_nodes_template" {
 
 resource "aws_launch_template" "eks_service_nodes_template" {
   name_prefix   = "eks-service-node-"
-  image_id      = data.aws_ssm_parameter.ubuntu_eks_ami.value
+  image_id      = data.aws_ssm_parameter.eks_ubuntu_ami.value
   instance_type = "t3.medium"
   key_name      = var.key_name
 
@@ -79,7 +75,7 @@ resource "aws_launch_template" "eks_service_nodes_template" {
 
 resource "aws_launch_template" "eks_ops_nodes_template" {
   name_prefix   = "eks-ops-node-"
-  image_id      = data.aws_ssm_parameter.ubuntu_eks_ami.value
+  image_id      = data.aws_ssm_parameter.eks_ubuntu_ami.value
   instance_type = "t3.medium"
   key_name      = var.key_name
 

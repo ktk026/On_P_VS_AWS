@@ -33,3 +33,19 @@ terraform {
     }
   }
 }
+
+
+data "aws_ssm_parameter" "instance_ubuntu_ami" {
+  name = "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
+}
+
+data "aws_ssm_parameter" "eks_ubuntu_ami" {
+  name = "/aws/service/canonical/ubuntu/eks/24.04/${var.k8s_version}/stable/current/amd64/hvm/ebs-gp3/ami-id"
+}
+
+resource "aws_ssm_parameter" "base_url" {
+  name  = "/shoply/base_url"
+  type  = "String"
+
+  value = "http://${data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].hostname}"
+}

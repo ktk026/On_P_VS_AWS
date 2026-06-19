@@ -23,16 +23,7 @@
                 "eks:DescribeCluster",
                 "eks:ListClusters"
             ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "CloudWatchAndLogs",
-            "Effect": "Allow",
-            "Action": [
-                "logs:CreateLogStream",
-                "logs:PutLogEvents"
-            ],
-            "Resource": "*"
+            "Resource": "arn:aws:eks:ap-northeast-2:367299441871:cluster/app-eks"
         }
     ]
 }

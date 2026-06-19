@@ -56,28 +56,9 @@ data "aws_s3_object" "db_migration_sql" {
 resource "aws_ecs_cluster" "db_migration" {
   name = "app-db-migration"
 
-  depends_on = [terraform_data.bootstrap_iam_policies]
+  depends_on = [aws_iam_group_policy.infra_policy]
 }
 
-resource "aws_iam_role" "db_migration_execution" {
-  name = "app-db-migration-execution-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Service = "ecs-tasks.amazonaws.com"
-      }
-      Action = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "db_migration_execution" {
-  role       = aws_iam_role.db_migration_execution.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
 
 resource "aws_ecs_task_definition" "db_migration" {
   family                   = "app-db-migration"
@@ -87,7 +68,7 @@ resource "aws_ecs_task_definition" "db_migration" {
   memory                   = 512
   execution_role_arn       = aws_iam_role.db_migration_execution.arn
 
-  depends_on = [terraform_data.bootstrap_iam_policies]
+  depends_on = [aws_iam_group_policy.infra_policy]
 
   container_definitions = jsonencode([
     {

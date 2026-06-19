@@ -40,7 +40,7 @@ resource "aws_security_group_rule" "ingress_from_monitoring" {
   from_port         = 9187
   to_port           = 9187
   protocol          = "tcp"
-  cidr_blocks       = var.monitoring_server_ips
+  cidr_blocks       = var.monitoring_server_cidr
 
   description = "postgresql_exporter"
 
@@ -52,7 +52,7 @@ resource "aws_security_group_rule" "rds_ingress_monitoring_os" {
   from_port         = 9100
   to_port           = 9100
   protocol          = "tcp"
-  cidr_blocks       = var.monitoring_server_ips
+  cidr_blocks       = var.monitoring_server_cidr
 
   description = "node_exporter"
 

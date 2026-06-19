@@ -9,6 +9,9 @@ resource "aws_eks_cluster" "eks" {
       aws_subnet.public_2a.id,
       aws_subnet.public_2c.id
     ]
+    
+    public_access_cidrs           = var.eks_allow_ips
+    endpoint_public_access        = true
   }
 
   access_config {
@@ -16,9 +19,7 @@ resource "aws_eks_cluster" "eks" {
     bootstrap_cluster_creator_admin_permissions = true
   }
 
-  depends_on = [
-    aws_iam_role_policy_attachment.eks_cluster_policy,
-  ]
+  depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
 }
 
 
@@ -32,9 +33,9 @@ resource "aws_eks_node_group" "api_node_group" {
   capacity_type = "ON_DEMAND"
 
   scaling_config {
-    desired_size = 2
+    desired_size = 1
     max_size     = 4
-    min_size     = 2
+    min_size     = 1
   }
 
   labels = {
@@ -62,9 +63,9 @@ resource "aws_eks_node_group" "service_node_group" {
   subnet_ids      = [aws_subnet.public_2a.id]
 
   scaling_config {
-    desired_size = 2
+    desired_size = 1
     max_size     = 4
-    min_size     = 2
+    min_size     = 1
   }
 
   capacity_type = "ON_DEMAND"
@@ -139,6 +140,27 @@ resource "aws_eks_access_policy_association" "k8s_admin_binding" {
 
   depends_on = [aws_eks_access_entry.k8s_user]
 }
+
+resource "aws_eks_access_entry" "cicd_user" {
+  cluster_name  = aws_eks_cluster.eks.name
+  principal_arn = "arn:aws:iam::367299441871:user/cicd"
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "cicd_shoply_binding" {
+  cluster_name  = aws_eks_cluster.eks.name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+  principal_arn = aws_eks_access_entry.cicd_user.principal_arn
+
+  access_scope {
+    type       = "namespace"
+    namespaces = ["shoply"]
+  }
+
+  depends_on = [aws_eks_access_entry.cicd_user]
+}
+
+
 
 resource "terraform_data" "update_kubeconfig" {
   input = {

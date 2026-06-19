@@ -1,58 +1,62 @@
-removed {
-  from = aws_iam_group.infra_group
-
-  lifecycle {
-    destroy = false
-  }
-}
-removed {
-  from = aws_iam_group.k8s_group
-
-  lifecycle {
-    destroy = false
-  }
-}
-removed {
-  from = aws_iam_group.cicd_group
-
-  lifecycle {
-    destroy = false
-  }
+resource "aws_iam_group" "infra_group" {
+  name = "infra_group"
 }
 
-resource "terraform_data" "bootstrap_iam_policies" {
-  triggers_replace = {
-    infra_policy_hash = filesha256("${path.module}/infra_group.json")
-    k8s_policy_hash   = filesha256("${path.module}/k8s_group.json")
-    cicd_policy_hash  = filesha256("${path.module}/cicd_group.json")
-  }
+resource "aws_iam_group" "k8s_group" {
+  name = "k8s_group"
+}
 
-  input = {
-    infra_policy_hash = filesha256("${path.module}/infra_group.json")
-    k8s_policy_hash   = filesha256("${path.module}/k8s_group.json")
-    cicd_policy_hash  = filesha256("${path.module}/cicd_group.json")
-  }
-
-  provisioner "local-exec" {
-    command = <<EOT
-    aws iam get-group --group-name infra_group >NUL 2>NUL || aws iam create-group --group-name infra_group
-    aws iam put-group-policy --group-name infra_group --policy-name infra_group --policy-document file://infra_group.json
-
-    aws iam get-group --group-name k8s_group >NUL 2>NUL || aws iam create-group --group-name k8s_group
-    aws iam put-group-policy --group-name k8s_group --policy-name k8s_group --policy-document file://k8s_group.json
-
-    aws iam get-group --group-name CICD_group >NUL 2>NUL || aws iam create-group --group-name CICD_group
-    aws iam put-group-policy --group-name CICD_group --policy-name cicd_group --policy-document file://cicd_group.json
-    EOT
-
-    interpreter = ["C:\\Windows\\System32\\cmd.exe", "/C"]
-    working_dir = path.module
-  }
+resource "aws_iam_group" "cicd_group" {
+  name = "cicd_group"
 }
 
 
+resource "aws_iam_group_policy" "infra_policy" {
+  name   = "infra_group"
+  group  = aws_iam_group.infra_group.name
+  policy = file("${path.module}/infra_group.json")
+}
 
-# EKS Cluster IAM
+resource "aws_iam_group_policy" "k8s_policy" {
+  name   = "k8s_group"
+  group  = aws_iam_group.k8s_group.name
+  policy = file("${path.module}/k8s_group.json")
+}
+
+resource "aws_iam_group_policy" "cicd_policy" {
+  name   = "cicd_group"
+  group  = aws_iam_group.cicd_group.name
+  policy = file("${path.module}/cicd_group.json")
+}
+
+
+resource "aws_iam_user_group_membership" "infra_membership" {
+  user = "infra"
+
+  groups = [
+    aws_iam_group.infra_group.name
+  ]
+}
+
+resource "aws_iam_user_group_membership" "k8s_membership" {
+  user = "k8s"
+
+  groups = [
+    aws_iam_group.k8s_group.name
+  ]
+}
+
+resource "aws_iam_user_group_membership" "cicd_membership" {
+  user = "cicd"
+
+  groups = [
+    aws_iam_group.cicd_group.name
+  ]
+}
+
+
+
+########## EKS Cluster IAM ##########
 
 resource "aws_iam_role" "cluster_role" {
   name = "app-eks-cluster-role"
@@ -76,7 +80,10 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 
 
 
-# EKS Worker IAM
+
+
+
+########## EKS Worker IAM ##########
 resource "aws_iam_role" "worker_role" {
   name = "app-eks-worker-role"
 
@@ -116,7 +123,37 @@ resource "aws_iam_instance_profile" "worker_profile" {
 
 
 
-# Karpenter IAM
+
+
+
+########## RDS IAM ##########
+resource "aws_iam_role" "db_migration_execution" {
+  name = "app-db-migration-execution-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ecs-tasks.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "db_migration_execution" {
+  role       = aws_iam_role.db_migration_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+
+
+
+
+
+
+########## Karpenter IAM ##########
 data "tls_certificate" "eks_oidc" {
   url = aws_eks_cluster.eks.identity[0].oidc[0].issuer
   depends_on = [aws_eks_cluster.eks]
@@ -258,7 +295,114 @@ resource "aws_iam_role_policy_attachment" "karpenter_controller" {
 
 
 
-# GitHub Actions IAM
+########## Load Ballancer IAM ##########
+locals {
+  aws_load_balancer_controller_version = "v3.4.0"
+  eks_oidc_provider_url                = replace(aws_eks_cluster.eks.identity[0].oidc[0].issuer, "https://", "")
+}
+
+data "http" "load_balancer_controller_iam_policy" {
+  url = "https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${local.aws_load_balancer_controller_version}/docs/install/iam_policy.json"
+}
+
+resource "aws_iam_policy" "load_balancer_controller" {
+  name   = "AWSLoadBalancerControllerIAMPolicy"
+  policy = data.http.load_balancer_controller_iam_policy.response_body
+}
+
+resource "aws_iam_role" "load_balancer_controller" {
+  name = "AmazonEKSLoadBalancerControllerRole"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = aws_iam_openid_connect_provider.eks.arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${local.eks_oidc_provider_url}:aud" = "sts.amazonaws.com"
+            "${local.eks_oidc_provider_url}:sub" = "system:serviceaccount:kube-system:load-balancer-controller"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "load_balancer_controller" {
+  role       = aws_iam_role.load_balancer_controller.name
+  policy_arn = aws_iam_policy.load_balancer_controller.arn
+}
+
+resource "kubernetes_service_account_v1" "load_balancer_controller" {
+  metadata {
+    name      = "load-balancer-controller"
+    namespace = "kube-system"
+
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.load_balancer_controller.arn
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.load_balancer_controller
+  ]
+}
+
+
+
+
+
+
+
+
+########## Argo CD IAM ##########
+resource "aws_iam_role" "argocd_role" {
+  name = "argocd-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "argocd_policy" {
+  name   = "argocd-policy"
+  role   = aws_iam_role.argocd_role.id
+  policy = file("${path.module}/cicd_group.json")
+}
+
+resource "aws_eks_access_entry" "argocd_entry" {
+  cluster_name  = aws_eks_cluster.eks.name
+  principal_arn = aws_iam_role.argocd_role.arn
+}
+
+resource "aws_eks_access_policy_association" "argocd_policy_assoc" {
+  cluster_name  = aws_eks_cluster.eks.name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+  principal_arn = aws_iam_role.argocd_role.arn
+
+  access_scope {
+    type       = "namespace"
+    namespaces = ["shoply"]
+  }
+}
+
+
+
+
+
+
+
+
+########## GitHub Actions IAM ##########
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
