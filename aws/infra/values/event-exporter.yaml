@@ -1,0 +1,19 @@
+rbac: { create: true, clusterRoleName: "event-exporter", clusterRoleBindingName: "event-exporter" }
+serviceAccount: { create: true, name: "event-exporter", namespace: kube-system }
+image: { repository: ghcr.io/resmoio/kubernetes-event-exporter, tag: v1.7 }
+config:
+  logLevel: error
+  logFormat: json
+  receivers:
+    - name: loki
+      loki:
+        url: http://10.0.9.53:3100/loki/api/v1/push
+        streamLabels: { source: kubernetes-events }
+  route: { routes: [{ match: [{ receiver: loki }] }] }
+nodeSelector:
+  role: ops
+tolerations:
+  - key: "role"
+    operator: "Equal"
+    value: "ops"
+    effect: "NoSchedule"

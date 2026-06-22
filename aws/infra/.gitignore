@@ -1,0 +1,13 @@
+# Terraform local working directory and generated state files.
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+
+# Terraform plan output is generated locally and should not be committed.
+tfplan
+*.tfplan
+
+# Local variable files can contain credentials or environment-specific values.
+*.tfvars
+*.tfvars.json
