@@ -1,0 +1,34 @@
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: shoply-prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-remote-write-receiver"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - shoply
+
+  grafana:
+    image: grafana/grafana
+    container_name: shoply-grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - shoply
+
+networks:
+  shoply:
+    external: true
+    name: msa_shoply_default

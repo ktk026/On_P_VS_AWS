@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shoply-test
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/ktk026/On_P_VS_AWS.git
+    targetRevision: develop
+    path: msa_shoply/k8s/common
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shoply
+
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

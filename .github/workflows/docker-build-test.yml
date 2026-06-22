@@ -1,0 +1,71 @@
+name: Docker Build and Push
+
+on:
+  push:
+    branches:
+      - develop
+      - cicd
+  pull_request:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: frontend
+            image: shoply-frontend
+            path: ./app/shoply
+          - name: gateway
+            image: shoply-gateway
+            path: ./app/shoply/gateway
+          - name: user
+            image: shoply-user
+            path: ./app/shoply/services/user
+          - name: product
+            image: shoply-product
+            path: ./app/shoply/services/product
+          - name: inventory
+            image: shoply-inventory
+            path: ./app/shoply/services/inventory
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Check Docker version
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ matrix.service.image }}:test ${{ matrix.service.path }}
+
+      - name: Test gateway health check
+        if: matrix.service.name == 'gateway'
+        run: |
+          docker run -d --name gateway-test -p 4000:4000 ${{ matrix.service.image }}:test
+          sleep 5
+          docker ps
+          curl -f http://localhost:4000/health
+
+      - name: Login to GHCR
+        if: github.event_name == 'push'
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ktk026 --password-stdin
+
+      - name: Tag and push image to GHCR
+        if: github.event_name == 'push'
+        run: |
+          docker tag ${{ matrix.service.image }}:test ghcr.io/ktk026/${{ matrix.service.image }}:develop
+          docker push ghcr.io/ktk026/${{ matrix.service.image }}:develop
+
