@@ -23,19 +23,25 @@ jobs:
         service:
           - name: frontend
             image: shoply-frontend
-            path: ./app/shoply
+            path: ./frontend
           - name: gateway
             image: shoply-gateway
-            path: ./app/shoply/gateway
+            path: ./gateway
           - name: user
             image: shoply-user
-            path: ./app/shoply/services/user
+            path: ./services/user
           - name: product
             image: shoply-product
-            path: ./app/shoply/services/product
+            path: ./services/product
           - name: inventory
             image: shoply-inventory
-            path: ./app/shoply/services/inventory
+            path: ./services/inventory
+          - name: order
+            image: shoply-order
+            path: ./services/order
+          - name: payment
+            image: shoply-payment
+            path: ./services/payment
 
     steps:
       - name: Checkout source code
