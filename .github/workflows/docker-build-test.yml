@@ -3,11 +3,11 @@ name: Docker Build and Push
 on:
   push:
     branches:
-      - develop
+      - dev
       - cicd
   pull_request:
     branches:
-      - develop
+      - dev
 
 permissions:
   contents: read
@@ -66,6 +66,5 @@ jobs:
       - name: Tag and push image to GHCR
         if: github.event_name == 'push'
         run: |
-          docker tag ${{ matrix.service.image }}:test ghcr.io/ktk026/${{ matrix.service.image }}:develop
-          docker push ghcr.io/ktk026/${{ matrix.service.image }}:develop
-
+          docker tag ${{ matrix.service.image }}:test ghcr.io/ktk026/${{ matrix.service.image }}:dev
+          docker push ghcr.io/ktk026/${{ matrix.service.image }}:dev
