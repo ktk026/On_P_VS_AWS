@@ -34,7 +34,7 @@ ghcr.io/ktk026/shoply-gateway:<commit-sha>
 | 브랜치 | 용도 |
 |---|---|
 | `main` | 최종 안정 버전 |
-| `develop` | 통합 테스트 |
+| `dev` | 통합 테스트 |
 | `cicd` | CI/CD, GHCR, 배포 자동화 작업 |
 
 작업 흐름:
@@ -42,7 +42,7 @@ ghcr.io/ktk026/shoply-gateway:<commit-sha>
 ```text
 feature/cicd work
 → cicd
-→ develop
+→ dev
 → main
 ```
 
@@ -54,15 +54,14 @@ feature/cicd work
 .github/workflows/docker-build-test.yml
 ```
 
-Gateway 이미지를 기준으로 Docker build, 컨테이너 실행, health check, GHCR push 흐름을 검증한다.
+서비스별 Docker build를 수행하고, gateway는 컨테이너 실행과 health check까지 검증한다. push 이벤트에서는 GHCR push까지 수행한다.
 
 | 항목 | 값 |
 |---|---|
-| 대상 서비스 | gateway |
-| 이미지 | `ghcr.io/ktk026/shoply-gateway` |
-| 테스트 태그 | `cicd-test` |
-| 포트 | 4000 |
-| Health Check | `/health` |
+| 대상 서비스 | frontend, gateway, user, product, inventory |
+| GHCR 태그 | `dev` |
+| gateway 포트 | 4000 |
+| gateway Health Check | `/health` |
 
 ## GHCR 로그인
 

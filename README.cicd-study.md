@@ -33,19 +33,19 @@ CI/CD 작업의 핵심 목적은 Shoply 서비스를 Docker 이미지로 만들�
 ```yaml
 push:
   branches:
-    - develop
+    - dev
     - cicd
 
 pull_request:
   branches:
-    - develop
+    - dev
 ```
 
 의미:
 
-- `develop` 브랜치에 push하면 실행된다.
+- `dev` 브랜치에 push하면 실행된다.
 - `cicd` 브랜치에 push하면 실행된다.
-- `develop` 브랜치로 Pull Request를 만들면 실행된다.
+- `dev` 브랜치로 Pull Request를 만들면 실행된다.
 
 ## Workflow가 하는 일
 
@@ -107,11 +107,11 @@ GHCR은 GitHub Container Registry의 줄임말이다.
 예시:
 
 ```text
-ghcr.io/ktk026/shoply-frontend:develop
-ghcr.io/ktk026/shoply-gateway:develop
-ghcr.io/ktk026/shoply-user:develop
-ghcr.io/ktk026/shoply-product:develop
-ghcr.io/ktk026/shoply-inventory:develop
+ghcr.io/ktk026/shoply-frontend:dev
+ghcr.io/ktk026/shoply-gateway:dev
+ghcr.io/ktk026/shoply-user:dev
+ghcr.io/ktk026/shoply-product:dev
+ghcr.io/ktk026/shoply-inventory:dev
 ```
 
 workflow에서는 push 이벤트일 때만 GHCR에 로그인하고 이미지를 push한다.
@@ -180,7 +180,7 @@ payment
 
 ```bash
 cd msa_shoply
-GHCR_OWNER=ktk026 IMAGE_TAG=develop ./scripts/push-ghcr.sh
+GHCR_OWNER=ktk026 IMAGE_TAG=dev ./scripts/push-ghcr.sh
 ```
 
 수동 push는 GitHub Actions를 거치지 않고 직접 이미지를 올려야 할 때 사용한다.
@@ -238,7 +238,7 @@ cicd/README.md
 | 브랜치 | 용도 |
 |---|---|
 | `main` | 최종 안정 버전 |
-| `develop` | 통합 테스트 |
+| `dev` | 통합 테스트 |
 | `cicd` | CI/CD, GHCR, 배포 자동화 작업 |
 
 ## 현재까지 한 작업의 의미
@@ -281,10 +281,10 @@ inventory
 
 ### 2. 이미지 태그 전략 개선
 
-현재 workflow는 `develop` 태그로 push한다.
+현재 workflow는 `dev` 태그로 push한다.
 
 ```text
-ghcr.io/ktk026/shoply-gateway:develop
+ghcr.io/ktk026/shoply-gateway:dev
 ```
 
 실험과 배포 재현성을 높이려면 commit SHA 태그도 같이 push하는 것이 좋다.
@@ -292,7 +292,7 @@ ghcr.io/ktk026/shoply-gateway:develop
 예시:
 
 ```text
-ghcr.io/ktk026/shoply-gateway:develop
+ghcr.io/ktk026/shoply-gateway:dev
 ghcr.io/ktk026/shoply-gateway:<commit-sha>
 ```
 
