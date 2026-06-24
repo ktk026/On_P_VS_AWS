@@ -149,7 +149,7 @@ resource "aws_eks_access_entry" "cicd_user" {
 
 resource "aws_eks_access_policy_association" "cicd_shoply_binding" {
   cluster_name  = aws_eks_cluster.eks.name
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
   principal_arn = aws_eks_access_entry.cicd_user.principal_arn
 
   access_scope {

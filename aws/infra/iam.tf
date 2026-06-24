@@ -390,7 +390,7 @@ resource "aws_eks_access_entry" "argocd_entry" {
 
 resource "aws_eks_access_policy_association" "argocd_policy_assoc" {
   cluster_name  = aws_eks_cluster.eks.name
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
   principal_arn = aws_iam_role.argocd_role.arn
 
   access_scope {
