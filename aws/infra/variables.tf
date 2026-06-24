@@ -28,17 +28,17 @@ variable "eks_allow_ips" {
 
 variable "monitoring_server_cidr" {
   type    = list(string)
-  default = ["106.248.40.229/32"]
+  default = ["121.134.211.97/32"]
 }
 
 variable "monitoring_server_ip" {
   type    = string
-  default = "106.248.40.229"
+  default = "3.38.106.213"
 }
 
 variable "my_ips" {
   type    = list(string)
-  default = ["106.248.40.229/32"]
+  default = ["121.134.211.97/32"]
 }
 
 

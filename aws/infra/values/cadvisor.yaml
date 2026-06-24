@@ -29,8 +29,8 @@ spec:
             - --whitelisted_container_labels=io.kubernetes.pod.name,io.kubernetes.pod.namespace,io.kubernetes.container.name
           ports:
             - name: http
-              containerPort: 8080
-              hostPort: 8080             # VM:8080 = 그 노드 cAdvisor
+              containerPort: 38080
+              hostPort: 38080             # VM:8080 = 그 노드 cAdvisor
           resources:
             requests:
               cpu: "50m"
