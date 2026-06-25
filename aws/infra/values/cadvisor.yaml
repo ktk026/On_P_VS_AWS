@@ -18,6 +18,8 @@ spec:
       # cAdvisor는 k8s API를 안 씀 → SA 토큰 마운트 끔.
       # (안 끄면 토큰이 read-only인 /var/run 밑에 마운트되려다 "read-only file system"으로 죽음)
       automountServiceAccountToken: false
+      tolerations:
+        - operator: Exists
       containers:
         - name: cadvisor
           image: gcr.io/cadvisor/cadvisor:v0.49.1
@@ -29,8 +31,8 @@ spec:
             - --whitelisted_container_labels=io.kubernetes.pod.name,io.kubernetes.pod.namespace,io.kubernetes.container.name
           ports:
             - name: http
-              containerPort: 38080
-              hostPort: 38080             # VM:8080 = 그 노드 cAdvisor
+              containerPort: 8080
+              hostPort: 8080             # VM:8080 = 그 노드 cAdvisor
           resources:
             requests:
               cpu: "50m"

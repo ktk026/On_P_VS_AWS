@@ -15,4 +15,3 @@ config:
         - { action: replace, source_labels: [__meta_kubernetes_pod_name], target_label: pod }
         - { action: replace, source_labels: [__meta_kubernetes_pod_container_name], target_label: container }
         - { action: replace, separator: /, source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name], target_label: __path__, replacement: /var/log/pods/*$1/*.log }
-tolerations: [{ operator: Exists }]

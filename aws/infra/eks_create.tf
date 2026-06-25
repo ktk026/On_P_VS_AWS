@@ -34,7 +34,7 @@ resource "aws_eks_node_group" "api_node_group" {
 
   scaling_config {
     desired_size = 1
-    max_size     = 4
+    max_size     = 1
     min_size     = 1
   }
 
@@ -64,7 +64,7 @@ resource "aws_eks_node_group" "service_node_group" {
 
   scaling_config {
     desired_size = 1
-    max_size     = 4
+    max_size     = 1
     min_size     = 1
   }
 
@@ -104,16 +104,16 @@ resource "aws_eks_node_group" "ops" {
   labels = {
     role = "ops"
   }
-
-  launch_template {
-    id      = aws_launch_template.eks_ops_nodes_template.id
-    version = aws_launch_template.eks_ops_nodes_template.latest_version
-  }
-
+  
   taint {
     key    = "role"
     value  = "ops"
     effect = "NO_SCHEDULE"
+  }
+
+  launch_template {
+    id      = aws_launch_template.eks_ops_nodes_template.id
+    version = aws_launch_template.eks_ops_nodes_template.latest_version
   }
 
   depends_on = [aws_eks_cluster.eks, aws_iam_role_policy_attachment.worker_policy, aws_iam_role_policy_attachment.worker_cni, aws_iam_role_policy_attachment.worker_ecr]
@@ -125,14 +125,14 @@ resource "aws_eks_node_group" "ops" {
 
 resource "aws_eks_access_entry" "k8s_user" {
   cluster_name  = aws_eks_cluster.eks.name
-  principal_arn = "arn:aws:iam::367299441871:user/k8s"
+  principal_arn = "arn:aws:iam::090960193690:user/k8s"
   type          = "STANDARD"
 }
 
 resource "aws_eks_access_policy_association" "k8s_admin_binding" {
   cluster_name  = aws_eks_cluster.eks.name
   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-  principal_arn = "arn:aws:iam::367299441871:user/k8s"
+  principal_arn = "arn:aws:iam::090960193690:user/k8s"
 
   access_scope {
     type = "cluster"
@@ -143,21 +143,20 @@ resource "aws_eks_access_policy_association" "k8s_admin_binding" {
 
 resource "aws_eks_access_entry" "cicd_user" {
   cluster_name  = aws_eks_cluster.eks.name
-  principal_arn = "arn:aws:iam::367299441871:user/cicd"
+  principal_arn = "arn:aws:iam::090960193690:user/cicd"
   type          = "STANDARD"
 }
 
 resource "aws_eks_access_policy_association" "cicd_shoply_binding" {
   cluster_name  = aws_eks_cluster.eks.name
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
   principal_arn = aws_eks_access_entry.cicd_user.principal_arn
 
   access_scope {
-    type       = "namespace"
-    namespaces = ["shoply"]
+    type       = "cluster"
   }
 
-  depends_on = [aws_eks_access_entry.cicd_user]
+  depends_on = [aws_eks_access_entry.cicd_user, kubernetes_namespace.shoply]
 }
 
 

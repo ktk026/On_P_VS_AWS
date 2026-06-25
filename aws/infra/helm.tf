@@ -67,45 +67,6 @@ resource "helm_release" "monitoring_exporters" {
 
 
 
-resource "helm_release" "karpenter" {
-  name             = "karpenter"
-  repository       = "oci://public.ecr.aws/karpenter"
-  chart            = "karpenter"
-  version          = "1.12.1"
-  namespace        = "kube-system"
-  create_namespace = false
-  wait             = true
-
-  set {
-    name  = "settings.clusterName"
-    value = aws_eks_cluster.eks.name
-  }
-
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = aws_iam_role.karpenter_controller.arn
-  }
-
-  depends_on = [
-    aws_eks_cluster.eks,
-    aws_eks_access_entry.karpenter_node,
-    aws_iam_role_policy_attachment.karpenter_controller
-  ]
-}
-
-
-resource "helm_release" "event_exporter" {
-  name             = "event-exporter"
-  repository       = "https://charts.deliveryhero.io"
-  chart            = "k8s-event-logger"
-  namespace        = "kube-system"
-  values = [file("${path.module}/values/event-exporter.yaml")]
-
-  depends_on = [kubernetes_namespace.ops, aws_eks_node_group.ops]
-}
-
-
-
 resource "kubectl_manifest" "cadvisor" {
   yaml_body = file("${path.module}/values/cadvisor.yaml")
 
@@ -121,4 +82,112 @@ resource "helm_release" "promtail" {
   values     = [file("${path.module}/values/promtail.yaml")]
 
   depends_on = [kubernetes_namespace.ops, aws_eks_node_group.ops]
+}
+
+
+
+
+
+
+resource "aws_sqs_queue" "karpenter" {
+  name = "karpenter-${aws_eks_cluster.eks.name}"
+}
+
+resource "helm_release" "karpenter" {
+  name             = "karpenter"
+  namespace        = "kube-system"
+
+  repository = "oci://public.ecr.aws/karpenter"
+  chart      = "karpenter"
+  version    = "1.8.1"
+
+  set {
+    name  = "settings.clusterName"
+    value = aws_eks_cluster.eks.name
+  }
+
+  set {
+    name  = "settings.interruptionQueue"
+    value = aws_sqs_queue.karpenter.name
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role\\-arn"
+    value = aws_iam_role.karpenter_controller.arn
+  }
+
+  depends_on = [aws_eks_cluster.eks, aws_iam_role_policy_attachment.karpenter_controller]
+}
+
+
+
+resource "kubernetes_config_map" "event_exporter_cfg" {
+  metadata {
+    name = "event-exporter-cfg"
+    namespace = "ops"
+  }
+  data = {
+    "config.yaml" = file("${path.module}/values/configmap.yaml")
+  }
+}
+resource "helm_release" "event_exporter" {
+  name       = "event-exporter"
+  repository = "https://charts.deliveryhero.io"
+  chart      = "k8s-event-logger"
+  namespace  = "ops"
+
+  force_update  = true
+  recreate_pods = true
+
+  values = [
+    yamlencode({
+      rbac = {
+        create                = true
+        clusterRoleName       = "event-exporter"
+        clusterRoleBindingName = "event-exporter"
+      }
+      serviceAccount = {
+        create    = true
+        name      = "event-exporter"
+        namespace = "kube-system"
+      }
+      image = {
+        repository = "ghcr.io/resmoio/kubernetes-event-exporter"
+        tag        = "v1.7"
+      }
+      nodeSelector = { role = "ops" }
+      tolerations = [{
+        key      = "role"
+        operator = "Equal"
+        value    = "ops"
+        effect   = "NoSchedule"
+      }]
+      podSecurityContext = {
+        runAsNonRoot = true
+        runAsUser    = 1000
+        fsGroup      = 1000
+      }
+      extraVolumes = [{
+        name      = "config-volume"
+        configMap = { name = "event-exporter-cfg" }
+      }]
+      extraVolumeMounts = [{
+        name      = "config-volume"
+        mountPath = "/data/config.yaml"
+        subPath   = "config.yaml"
+        readOnly  = true
+      }]
+      extraInitContainers = [{
+        name    = "fix-permissions"
+        image   = "busybox"
+        command = ["sh", "-c", "chmod 644 /data/config.yaml"]
+        volumeMounts = [{
+          name      = "config-volume"
+          mountPath = "/data/config.yaml"
+          subPath   = "config.yaml"
+        }]
+      }]
+      extraArgs = ["--config=/data/config.yaml"]
+    })
+  ]
 }

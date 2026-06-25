@@ -257,31 +257,40 @@ resource "aws_iam_policy" "karpenter_controller" {
           "pricing:GetProducts",
           "ssm:GetParameter"
         ]
-        Resource = "*"
+        Resource = ["*"]
       },
       {
         Effect   = "Allow"
         Action   = "eks:DescribeCluster"
-        Resource = aws_eks_cluster.eks.arn
+        Resource = ["*"]
       },
       {
         Effect   = "Allow"
-        Action   = "iam:PassRole"
-        Resource = aws_iam_role.karpenter_node.arn
+        Action   = [
+          "iam:PassRole",
+          "iam:GetInstanceProfile",
+          "iam:CreateInstanceProfile",
+          "iam:DeleteInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile",
+          "iam:TagInstanceProfile",
+          "iam:UntagInstanceProfile",
+          "iam:GetRole",
+          "iam:ListInstanceProfiles"
+        ]
+        Resource = ["*"]
       },
       {
         Effect = "Allow"
         Action = [
-          "iam:AddRoleToInstanceProfile",
-          "iam:CreateInstanceProfile",
-          "iam:DeleteInstanceProfile",
-          "iam:GetInstanceProfile",
-          "iam:GetRole",
-          "iam:ListInstanceProfiles",
-          "iam:RemoveRoleFromInstanceProfile",
-          "iam:TagInstanceProfile"
+          "sqs:CreateQueue",
+          "sqs:GetQueueUrl",
+          "sqs:GetQueueAttributes",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:ListQueues"
         ]
-        Resource = "*"
+        Resource = ["*"]
       }
     ]
   })
@@ -390,12 +399,11 @@ resource "aws_eks_access_entry" "argocd_entry" {
 
 resource "aws_eks_access_policy_association" "argocd_policy_assoc" {
   cluster_name  = aws_eks_cluster.eks.name
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
   principal_arn = aws_iam_role.argocd_role.arn
 
   access_scope {
-    type       = "namespace"
-    namespaces = ["shoply"]
+    type = "cluster"
   }
 }
 

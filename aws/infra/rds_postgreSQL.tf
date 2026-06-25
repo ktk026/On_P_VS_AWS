@@ -48,12 +48,12 @@ locals {
   db_migration_files  = ["01_schema.sql", "02_seed.sql"]
 }
 
-# data "aws_s3_object" "db_migration_sql" {
-#   for_each = toset(local.db_migration_files)
+data "aws_s3_object" "db_migration_sql" {
+  for_each = toset(local.db_migration_files)
 
-#   bucket = local.db_migration_bucket
-#   key    = each.value
-# }
+  bucket = local.db_migration_bucket
+  key    = each.value
+}
 
 resource "aws_ecs_cluster" "db_migration" {
   name = "app-db-migration"
@@ -100,85 +100,85 @@ resource "aws_ecs_task_definition" "db_migration" {
 }
 
 
-# resource "null_resource" "db_migration" {
-#   depends_on = [
-#     aws_db_instance.postgres,
-#     aws_ecs_task_definition.db_migration,
-#     aws_security_group_rule.ingress_postgres_from_rds_sg,
-#     aws_security_group_rule.rds_egress_all,
-#     aws_iam_role_policy_attachment.db_migration_execution,
-#     aws_iam_user_group_membership.infra_membership
-#   ]
+resource "null_resource" "db_migration" {
+  depends_on = [
+    aws_db_instance.postgres,
+    aws_ecs_task_definition.db_migration,
+    aws_security_group_rule.ingress_postgres_from_rds_sg,
+    aws_security_group_rule.rds_egress_all,
+    aws_iam_role_policy_attachment.db_migration_execution,
+    aws_iam_user_group_membership.infra_membership
+  ]
 
-#   triggers = {
-#     db_endpoint        = aws_db_instance.postgres.address
-#     migration_revision = "2026-06-05-rerun-4"
-#     schema_etag        = data.aws_s3_object.db_migration_sql["01_schema.sql"].etag
-#     seed_etag          = data.aws_s3_object.db_migration_sql["02_seed.sql"].etag
-#   }
+  triggers = {
+    db_endpoint        = aws_db_instance.postgres.address
+    migration_revision = "2026-06-05-rerun-4"
+    schema_etag        = data.aws_s3_object.db_migration_sql["01_schema.sql"].etag
+    seed_etag          = data.aws_s3_object.db_migration_sql["02_seed.sql"].etag
+  }
 
-#   provisioner "local-exec" {
-#     command     = <<EOT
-#     $ErrorActionPreference = "Stop"
+  provisioner "local-exec" {
+    command     = <<EOT
+    $ErrorActionPreference = "Stop"
 
-#     $schemaUrl = aws s3 presign "s3://${local.db_migration_bucket}/01_schema.sql" --expires-in 3600 --region ap-northeast-2
-#     $seedUrl = aws s3 presign "s3://${local.db_migration_bucket}/02_seed.sql" --expires-in 3600 --region ap-northeast-2
+    $schemaUrl = aws s3 presign "s3://${local.db_migration_bucket}/01_schema.sql" --expires-in 3600 --region ap-northeast-2
+    $seedUrl = aws s3 presign "s3://${local.db_migration_bucket}/02_seed.sql" --expires-in 3600 --region ap-northeast-2
 
-#     $overrides = @{
-#       containerOverrides = @(
-#         @{
-#           name = "db-migration"
-#           environment = @(
-#             @{ name = "SCHEMA_URL"; value = $schemaUrl },
-#             @{ name = "SEED_URL"; value = $seedUrl }
-#           )
-#         }
-#       )
-#     } | ConvertTo-Json -Depth 6 -Compress
-#     $overridesPath = Join-Path $env:TEMP "db-migration-overrides.json"
-#     Set-Content -Path $overridesPath -Value $overrides -Encoding ascii
+    $overrides = @{
+      containerOverrides = @(
+        @{
+          name = "db-migration"
+          environment = @(
+            @{ name = "SCHEMA_URL"; value = $schemaUrl },
+            @{ name = "SEED_URL"; value = $seedUrl }
+          )
+        }
+      )
+    } | ConvertTo-Json -Depth 6 -Compress
+    $overridesPath = Join-Path $env:TEMP "db-migration-overrides.json"
+    Set-Content -Path $overridesPath -Value $overrides -Encoding ascii
 
-#     $networkConfig = "awsvpcConfiguration={subnets=[${aws_subnet.public_2a.id},${aws_subnet.public_2c.id}],securityGroups=[${aws_security_group.rds_sg.id}],assignPublicIp=ENABLED}"
+    $networkConfig = "awsvpcConfiguration={subnets=[${aws_subnet.public_2a.id},${aws_subnet.public_2c.id}],securityGroups=[${aws_security_group.rds_sg.id}],assignPublicIp=ENABLED}"
 
-#     $runTask = aws ecs run-task `
-#       --cluster "${aws_ecs_cluster.db_migration.name}" `
-#       --task-definition "${aws_ecs_task_definition.db_migration.arn}" `
-#       --launch-type FARGATE `
-#       --network-configuration $networkConfig `
-#       --overrides "file://$overridesPath" `
-#       --region ap-northeast-2 `
-#       --output json | ConvertFrom-Json
+    $runTask = aws ecs run-task `
+      --cluster "${aws_ecs_cluster.db_migration.name}" `
+      --task-definition "${aws_ecs_task_definition.db_migration.arn}" `
+      --launch-type FARGATE `
+      --network-configuration $networkConfig `
+      --overrides "file://$overridesPath" `
+      --region ap-northeast-2 `
+      --output json | ConvertFrom-Json
 
-#     if ($runTask.failures.Count -gt 0) {
-#       $runTask.failures | ConvertTo-Json -Depth 5
-#       exit 1
-#     }
+    if ($runTask.failures.Count -gt 0) {
+      $runTask.failures | ConvertTo-Json -Depth 5
+      exit 1
+    }
 
-#     $taskArn = $runTask.tasks[0].taskArn
-#     if ([string]::IsNullOrWhiteSpace($taskArn)) {
-#       Write-Host "ECS run-task returned no taskArn."
-#       exit 1
-#     }
+    $taskArn = $runTask.tasks[0].taskArn
+    if ([string]::IsNullOrWhiteSpace($taskArn)) {
+      Write-Host "ECS run-task returned no taskArn."
+      exit 1
+    }
 
-#     Write-Host "Started DB migration task: $taskArn"
-#     aws ecs wait tasks-stopped --cluster "${aws_ecs_cluster.db_migration.name}" --tasks $taskArn --region ap-northeast-2
+    Write-Host "Started DB migration task: $taskArn"
+    aws ecs wait tasks-stopped --cluster "${aws_ecs_cluster.db_migration.name}" --tasks $taskArn --region ap-northeast-2
 
-#     $task = aws ecs describe-tasks `
-#       --cluster "${aws_ecs_cluster.db_migration.name}" `
-#       --tasks $taskArn `
-#       --region ap-northeast-2 `
-#       --output json | ConvertFrom-Json
+    $task = aws ecs describe-tasks `
+      --cluster "${aws_ecs_cluster.db_migration.name}" `
+      --tasks $taskArn `
+      --region ap-northeast-2 `
+      --output json | ConvertFrom-Json
 
-#     $container = $task.tasks[0].containers[0]
-#     Write-Host "DB migration exitCode: $($container.exitCode)"
-#     if ($container.reason) {
-#       Write-Host "DB migration reason: $($container.reason)"
-#     }
+    $container = $task.tasks[0].containers[0]
+    Write-Host "DB migration exitCode: $($container.exitCode)"
+    if ($container.reason) {
+      Write-Host "DB migration reason: $($container.reason)"
+    }
 
-#     if ($container.exitCode -ne 0) {
-#       exit 1
-#     }
-#     EOT
-#     interpreter = ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
-#   }
-# }
+    if ($container.exitCode -ne 0) {
+      exit 1
+    }
+    EOT
+    interpreter = ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
+  }
+}

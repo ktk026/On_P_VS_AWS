@@ -72,7 +72,8 @@
                 "eks:AssociateAccessPolicy",
                 "eks:DescribeAccessEntry",
                 "eks:DisassociateAccessPolicy",
-                "eks:ListAssociatedAccessPolicies"
+                "eks:ListAssociatedAccessPolicies",
+                "eks:DescribeClusterVersions"
             ],
             "Resource": "*"
         },
@@ -123,28 +124,24 @@
             "Action": [
                 "s3:GetObject",
                 "s3:ListBucket",
-                "s3:GetObject",
                 "s3:HeadObject",
                 "s3:GetObjectTagging",
                 "s3:ListBucket"
             ],
-            "Resource": [
-                "arn:aws:s3:::shoply-postgresql2",
-                "arn:aws:s3:::shoply-postgresql2/*"
-            ]
+            "Resource": "*"
         },
         {
             "Sid": "SSMAccessPermissions",
             "Effect": "Allow",
             "Action": [
-                "ssm:DescribeParameters",
+                "ssm:PutParameter",
+                "ssm:DeleteParameter",
                 "ssm:GetParameter",
                 "ssm:GetParameters",
                 "ssm:GetParametersByPath",
-                "ssm:PutParameter",
-                "ssm:DeleteParameter",
                 "ssm:AddTagsToResource",
-                "ssm:ListTagsForResource"
+                "ssm:ListTagsForResource",
+                "ssm:DescribeParameters"
             ],
             "Resource": "*"
         },
@@ -184,6 +181,27 @@
                 "iam:ListPolicies",
                 "iam:GetPolicyVersion",
                 "iam:TagRole"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "SQSAccessPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:CreateQueue",
+                "sqs:DeleteQueue",
+                "sqs:GetQueueAttributes",
+                "sqs:SetQueueAttributes",
+                "sqs:TagQueue",
+                "sqs:ListQueueTags",
+                "sqs:GetQueueUrl"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:*"
             ],
             "Resource": "*"
         }

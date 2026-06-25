@@ -23,7 +23,7 @@
                 "eks:DescribeCluster",
                 "eks:ListClusters"
             ],
-            "Resource": "arn:aws:eks:ap-northeast-2:367299441871:cluster/app-eks"
+            "Resource": "arn:aws:eks:ap-northeast-2:090960193690:cluster/app-eks"
         }
     ]
 }
