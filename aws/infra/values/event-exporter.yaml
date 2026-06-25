@@ -17,3 +17,10 @@ tolerations:
     operator: "Equal"
     value: "ops"
     effect: "NoSchedule"
+
+podSecurityContext:
+  runAsUser: 0
+  runAsGroup: 0
+securityContext:
+  runAsNonRoot: false
+  runAsUser: 0

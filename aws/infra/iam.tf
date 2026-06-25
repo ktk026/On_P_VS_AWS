@@ -15,43 +15,40 @@ resource "aws_iam_group_policy" "infra_policy" {
   name   = "infra_group"
   group  = aws_iam_group.infra_group.name
   policy = file("${path.module}/infra_group.json")
+  depends_on = [aws_iam_group.infra_group]
 }
 
 resource "aws_iam_group_policy" "k8s_policy" {
   name   = "k8s_group"
   group  = aws_iam_group.k8s_group.name
   policy = file("${path.module}/k8s_group.json")
+  depends_on = [aws_iam_group.k8s_group]
 }
 
 resource "aws_iam_group_policy" "cicd_policy" {
   name   = "cicd_group"
   group  = aws_iam_group.cicd_group.name
   policy = file("${path.module}/cicd_group.json")
+  depends_on = [aws_iam_group.cicd_group]
 }
 
 
 resource "aws_iam_user_group_membership" "infra_membership" {
   user = "infra"
-
-  groups = [
-    aws_iam_group.infra_group.name
-  ]
+  groups = [aws_iam_group.infra_group.name]
+  depends_on = [aws_iam_group_policy.infra_policy]
 }
 
 resource "aws_iam_user_group_membership" "k8s_membership" {
   user = "k8s"
-
-  groups = [
-    aws_iam_group.k8s_group.name
-  ]
+  groups = [aws_iam_group.k8s_group.name]
+  depends_on = [aws_iam_group_policy.k8s_policy]
 }
 
 resource "aws_iam_user_group_membership" "cicd_membership" {
   user = "cicd"
-
-  groups = [
-    aws_iam_group.cicd_group.name
-  ]
+  groups = [aws_iam_group.cicd_group.name]
+  depends_on = [aws_iam_group_policy.cicd_policy]
 }
 
 
@@ -60,6 +57,7 @@ resource "aws_iam_user_group_membership" "cicd_membership" {
 
 resource "aws_iam_role" "cluster_role" {
   name = "app-eks-cluster-role"
+  depends_on = [aws_iam_user_group_membership.infra_membership]
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -86,6 +84,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 ########## EKS Worker IAM ##########
 resource "aws_iam_role" "worker_role" {
   name = "app-eks-worker-role"
+  depends_on = [aws_iam_user_group_membership.infra_membership]
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -93,7 +92,7 @@ resource "aws_iam_role" "worker_role" {
       {
         Effect = "Allow"
         Principal = {
-          Service = ["ec2.amazonaws.com", "eks.amazonaws.com"]
+          Service = "ec2.amazonaws.com"
         }
         Action = "sts:AssumeRole"
       }
@@ -129,6 +128,7 @@ resource "aws_iam_instance_profile" "worker_profile" {
 ########## RDS IAM ##########
 resource "aws_iam_role" "db_migration_execution" {
   name = "app-db-migration-execution-role"
+  depends_on = [aws_iam_user_group_membership.infra_membership]
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -171,6 +171,7 @@ locals {
 
 resource "aws_iam_role" "karpenter_controller" {
   name = "${var.cluster_name}-karpenter-controller"
+  depends_on = [aws_iam_user_group_membership.infra_membership]
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -192,6 +193,7 @@ resource "aws_iam_role" "karpenter_controller" {
 
 resource "aws_iam_role" "karpenter_node" {
   name = "${var.cluster_name}-karpenter-node"
+  depends_on = [aws_iam_user_group_membership.infra_membership]
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -227,6 +229,7 @@ resource "aws_iam_role_policy_attachment" "karpenter_node_ssm" {
 
 resource "aws_iam_policy" "karpenter_controller" {
   name = "${var.cluster_name}-karpenter-controller-policy"
+  depends_on = [aws_iam_user_group_membership.infra_membership]
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -265,20 +268,6 @@ resource "aws_iam_policy" "karpenter_controller" {
         Effect   = "Allow"
         Action   = "iam:PassRole"
         Resource = aws_iam_role.karpenter_node.arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:AddRoleToInstanceProfile",
-          "iam:CreateInstanceProfile",
-          "iam:DeleteInstanceProfile",
-          "iam:GetInstanceProfile",
-          "iam:GetRole",
-          "iam:ListInstanceProfiles",
-          "iam:RemoveRoleFromInstanceProfile",
-          "iam:TagInstanceProfile"
-        ]
-        Resource = "*"
       }
     ]
   })
@@ -312,6 +301,7 @@ resource "aws_iam_policy" "load_balancer_controller" {
 
 resource "aws_iam_role" "load_balancer_controller" {
   name = "AmazonEKSLoadBalancerControllerRole"
+  depends_on = [aws_iam_user_group_membership.infra_membership]
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -386,12 +376,11 @@ resource "aws_eks_access_entry" "argocd_entry" {
 
 resource "aws_eks_access_policy_association" "argocd_policy_assoc" {
   cluster_name  = aws_eks_cluster.eks.name
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
   principal_arn = aws_iam_role.argocd_role.arn
 
   access_scope {
-    type       = "namespace"
-    namespaces = ["shoply"]
+    type = "cluster"
   }
 }
 

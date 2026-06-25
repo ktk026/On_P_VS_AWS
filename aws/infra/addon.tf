@@ -17,9 +17,7 @@ resource "aws_eks_addon" "coredns" {
   resolve_conflicts_on_update = "OVERWRITE"
 
   depends_on = [
-    aws_eks_node_group.ops,
-    aws_eks_node_group.api_node_group,
-    aws_eks_node_group.service_node_group
+    aws_eks_node_group.ops
   ]
 }
 
@@ -32,9 +30,7 @@ resource "aws_eks_addon" "kube_proxy" {
   resolve_conflicts_on_update = "OVERWRITE"
 
   depends_on = [
-    aws_eks_node_group.ops,
-    aws_eks_node_group.api_node_group,
-    aws_eks_node_group.service_node_group
+    aws_eks_node_group.ops
   ]
 }
 
@@ -46,9 +42,21 @@ resource "aws_eks_addon" "metrics_server" {
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
 
+  configuration_values = jsonencode({
+    nodeSelector = {
+      role = "ops"
+    }
+    tolerations = [
+      {
+        key      = "role"
+        operator = "Equal"
+        value    = "ops"
+        effect   = "NoSchedule"
+      }
+    ]
+  })
+
   depends_on = [
-    aws_eks_node_group.ops,
-    aws_eks_node_group.api_node_group,
-    aws_eks_node_group.service_node_group
+    aws_eks_node_group.ops
   ]
 }

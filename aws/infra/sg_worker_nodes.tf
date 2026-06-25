@@ -99,6 +99,17 @@ resource "aws_security_group_rule" "ingress_monitoring" {
 
 
 
+resource "aws_security_group_rule" "cadivisor_ingress"{
+  type              = "ingress"
+  security_group_id = aws_security_group.eks_worker_sg.id
+  from_port         = 38080
+  to_port           = 38081
+  protocol          = "tcp"
+  cidr_blocks       = var.monitoring_server_cidr
+}
+
+
+
 
 
 

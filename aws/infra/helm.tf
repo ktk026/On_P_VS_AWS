@@ -67,38 +67,11 @@ resource "helm_release" "monitoring_exporters" {
 
 
 
-resource "helm_release" "karpenter" {
-  name             = "karpenter"
-  repository       = "oci://public.ecr.aws/karpenter"
-  chart            = "karpenter"
-  version          = "1.12.1"
-  namespace        = "kube-system"
-  create_namespace = false
-  wait             = true
-
-  set {
-    name  = "settings.clusterName"
-    value = aws_eks_cluster.eks.name
-  }
-
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = aws_iam_role.karpenter_controller.arn
-  }
-
-  depends_on = [
-    aws_eks_cluster.eks,
-    aws_eks_access_entry.karpenter_node,
-    aws_iam_role_policy_attachment.karpenter_controller
-  ]
-}
-
-
 resource "helm_release" "event_exporter" {
   name             = "event-exporter"
   repository       = "https://charts.deliveryhero.io"
   chart            = "k8s-event-logger"
-  namespace        = "kube-system"
+  namespace        = "ops"
   values = [file("${path.module}/values/event-exporter.yaml")]
 
   depends_on = [kubernetes_namespace.ops, aws_eks_node_group.ops]
@@ -121,4 +94,39 @@ resource "helm_release" "promtail" {
   values     = [file("${path.module}/values/promtail.yaml")]
 
   depends_on = [kubernetes_namespace.ops, aws_eks_node_group.ops]
+}
+
+
+
+
+
+
+resource "aws_sqs_queue" "karpenter" {
+  name = "karpenter-${aws_eks_cluster.eks.name}"
+}
+
+resource "helm_release" "karpenter" {
+  name             = "karpenter"
+  namespace        = "kube-system"
+
+  repository = "oci://public.ecr.aws/karpenter"
+  chart      = "karpenter"
+  version    = "1.8.1"
+
+  set {
+    name  = "settings.clusterName"
+    value = aws_eks_cluster.eks.name
+  }
+
+  set {
+    name  = "settings.interruptionQueue"
+    value = aws_sqs_queue.karpenter.name
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role\\-arn"
+    value = aws_iam_role.karpenter_controller.arn
+  }
+
+  depends_on = [aws_eks_cluster.eks, aws_iam_role_policy_attachment.karpenter_controller]
 }
