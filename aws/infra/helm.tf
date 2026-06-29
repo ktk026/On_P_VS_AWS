@@ -8,7 +8,6 @@ resource "null_resource" "helm_repo_update" {
       helm repo add aws-load-balancer-controller https://aws.github.io/eks-charts || true
       helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
       helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx || true
-      helm repo add bitnami https://charts.bitnami.com/bitnami || true
       helm repo add grafana https://grafana.github.io/helm-charts || true
       helm repo add deliveryhero https://charts.deliveryhero.io || true
       helm repo update
@@ -87,37 +86,6 @@ resource "helm_release" "promtail" {
 
 
 
-
-
-resource "aws_sqs_queue" "karpenter" {
-  name = "karpenter-${aws_eks_cluster.eks.name}"
-}
-
-resource "helm_release" "karpenter" {
-  name             = "karpenter"
-  namespace        = "kube-system"
-
-  repository = "oci://public.ecr.aws/karpenter"
-  chart      = "karpenter"
-  version    = "1.8.1"
-
-  set {
-    name  = "settings.clusterName"
-    value = aws_eks_cluster.eks.name
-  }
-
-  set {
-    name  = "settings.interruptionQueue"
-    value = aws_sqs_queue.karpenter.name
-  }
-
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role\\-arn"
-    value = aws_iam_role.karpenter_controller.arn
-  }
-
-  depends_on = [aws_eks_cluster.eks, aws_iam_role_policy_attachment.karpenter_controller]
-}
 
 
 

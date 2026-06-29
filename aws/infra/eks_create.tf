@@ -34,7 +34,7 @@ resource "aws_eks_node_group" "api_node_group" {
 
   scaling_config {
     desired_size = 1
-    max_size     = 1
+    max_size     = 4
     min_size     = 1
   }
 
@@ -64,7 +64,7 @@ resource "aws_eks_node_group" "service_node_group" {
 
   scaling_config {
     desired_size = 1
-    max_size     = 1
+    max_size     = 4
     min_size     = 1
   }
 

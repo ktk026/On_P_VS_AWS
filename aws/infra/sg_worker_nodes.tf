@@ -4,19 +4,9 @@ resource "aws_security_group" "eks_worker_sg" {
 
   tags = {
     Name                     = "app-eks-worker-sg"
-    "karpenter.sh/discovery" = var.cluster_name
   }
 }
 
-
-resource "aws_security_group_rule" "worker_ingress_ssh" {
-  type              = "ingress"
-  security_group_id = aws_security_group.eks_worker_sg.id
-  from_port         = 22
-  to_port           = 22
-  protocol          = "tcp"
-  cidr_blocks       = var.my_ips
-}
 
 resource "aws_security_group_rule" "ingress_worker_to_worker" {
   type              = "ingress"
@@ -43,6 +33,15 @@ resource "aws_security_group_rule" "ingress_worker_to_cluster" {
   to_port                  = 443
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.eks_worker_sg.id
+}
+
+resource "aws_security_group_rule" "worker_ingress_ssh" {
+  type              = "ingress"
+  security_group_id = aws_security_group.eks_worker_sg.id
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = var.my_ips
 }
 
 
