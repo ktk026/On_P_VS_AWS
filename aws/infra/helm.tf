@@ -9,7 +9,8 @@ resource "null_resource" "helm_repo_update" {
       helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
       helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx || true
       helm repo add grafana https://grafana.github.io/helm-charts || true
-      helm repo add deliveryhero https://charts.deliveryhero.io || true
+      helm repo add deliveryhero https://charts.deliveryhero.io/ || true
+      helm repo add autoscaler https://kubernetes.github.io/autoscaler || true
       helm repo update
     EOT
   }
@@ -87,21 +88,11 @@ resource "helm_release" "promtail" {
 
 
 
-
-
-resource "kubernetes_config_map" "event_exporter_cfg" {
-  metadata {
-    name = "event-exporter-cfg"
-    namespace = "ops"
-  }
-  data = {
-    "config.yaml" = file("${path.module}/values/configmap.yaml")
-  }
-}
 resource "helm_release" "event_exporter" {
   name       = "event-exporter"
   repository = "https://charts.deliveryhero.io"
   chart      = "k8s-event-logger"
+  version    = "1.1.8"
   namespace  = "ops"
 
   force_update  = true
@@ -109,53 +100,110 @@ resource "helm_release" "event_exporter" {
 
   values = [
     yamlencode({
+
+      image = {
+        repository = "maxrocketinternet/k8s-event-logger"
+        pullPolicy = "IfNotPresent"
+      }
+
+
+      resources = {
+        requests = {
+          cpu    = "10m"
+          memory = "128Mi"
+        }
+
+        limits = {
+          cpu    = "100m"
+          memory = "128Mi"
+        }
+      }
+
+
+      nodeSelector = {
+        role = "ops"
+      }
+
+
+      tolerations = [
+        {
+          key      = "role"
+          operator = "Equal"
+          value    = "ops"
+          effect   = "NoSchedule"
+        }
+      ]
+
+
+      podSecurityContext = {
+        readOnlyRootFilesystem = true
+        runAsNonRoot           = true
+        runAsUser              = 10001
+        runAsGroup             = 10001
+        allowPrivilegeEscalation = false
+
+        capabilities = {
+          drop = [
+            "ALL"
+          ]
+        }
+
+        seccompProfile = {
+          type = "RuntimeDefault"
+        }
+      }
+
+
       rbac = {
-        create                = true
-        clusterRoleName       = "event-exporter"
+        create                 = true
+        clusterRoleName        = "event-exporter"
         clusterRoleBindingName = "event-exporter"
       }
+
+
       serviceAccount = {
-        create    = true
-        name      = "event-exporter"
-        namespace = "kube-system"
+        create = true
+        name   = "event-exporter"
       }
-      image = {
-        repository = "ghcr.io/resmoio/kubernetes-event-exporter"
-        tag        = "v1.7"
-      }
-      nodeSelector = { role = "ops" }
-      tolerations = [{
-        key      = "role"
-        operator = "Equal"
-        value    = "ops"
-        effect   = "NoSchedule"
-      }]
-      podSecurityContext = {
-        runAsNonRoot = true
-        runAsUser    = 1000
-        fsGroup      = 1000
-      }
-      extraVolumes = [{
-        name      = "config-volume"
-        configMap = { name = "event-exporter-cfg" }
-      }]
-      extraVolumeMounts = [{
-        name      = "config-volume"
-        mountPath = "/data/config.yaml"
-        subPath   = "config.yaml"
-        readOnly  = true
-      }]
-      extraInitContainers = [{
-        name    = "fix-permissions"
-        image   = "busybox"
-        command = ["sh", "-c", "chmod 644 /data/config.yaml"]
-        volumeMounts = [{
-          name      = "config-volume"
-          mountPath = "/data/config.yaml"
-          subPath   = "config.yaml"
-        }]
-      }]
-      extraArgs = ["--config=/data/config.yaml"]
+
     })
   ]
+
+  depends_on = [
+    aws_eks_node_group.ops
+  ]
+}
+
+resource "helm_release" "cluster_autoscaler" {
+  name       = "cluster-autoscaler"
+  repository = "https://kubernetes.github.io/autoscaler"
+  chart      = "cluster-autoscaler"
+  namespace  = "kube-system"
+
+  set {
+    name  = "cloudProvider"
+    value = "aws"
+  }
+
+  set {
+    name  = "autoDiscovery.clusterName"
+    value = aws_eks_cluster.eks.name
+  }
+
+  set {
+    name  = "awsRegion"
+    value = "ap-northeast-2"
+  }
+
+  set {
+    name  = "rbac.serviceAccount.create"
+    value = "false"
+  }
+
+  set {
+    name  = "rbac.serviceAccount.name"
+    value = kubernetes_service_account.cluster_autoscaler.metadata[0].name
+  }
+
+  depends_on = [aws_eks_node_group.ops, kubernetes_service_account.cluster_autoscaler]
 }

@@ -29,7 +29,7 @@ locals {
 resource "aws_launch_template" "eks_api_nodes_template" {
   name_prefix   = "eks-api-node-"
   image_id      = data.aws_ssm_parameter.eks_ubuntu_ami.value
-  instance_type = "t3.medium"
+  instance_type = "c8i-flex.large"
   key_name      = var.key_name
 
   vpc_security_group_ids = [
@@ -52,7 +52,7 @@ resource "aws_launch_template" "eks_api_nodes_template" {
 resource "aws_launch_template" "eks_service_nodes_template" {
   name_prefix   = "eks-service-node-"
   image_id      = data.aws_ssm_parameter.eks_ubuntu_ami.value
-  instance_type = "t3.medium"
+  instance_type = "c8i-flex.large"
   key_name      = var.key_name
 
   vpc_security_group_ids = [

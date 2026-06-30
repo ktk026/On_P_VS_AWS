@@ -22,13 +22,13 @@ resource "kubernetes_secret" "db_secret" {
   
 }
 
-resource "aws_ecr_repository" "app-repo" {
-  for_each = toset(var.ecr_repositories)
-  name     = each.value
+# resource "aws_ecr_repository" "app-repo" {
+#   for_each = toset(var.ecr_repositories)
+#   name     = each.value
 
-  image_tag_mutability = "MUTABLE"
+#   image_tag_mutability = "MUTABLE"
 
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-}
+#   image_scanning_configuration {
+#     scan_on_push = true
+#   }
+# }

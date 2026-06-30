@@ -26,10 +26,15 @@ data "kubernetes_service" "ingress_nginx" {
     name      = "ingress-nginx-controller"
     namespace = "ingress-nginx"
   }
-  
+
   depends_on = [helm_release.ingress_nginx]
 }
 
 locals {
-  base_url = "http://${data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].hostname}"
+  ingress_host = try(
+    data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].hostname,
+    ""
+  )
+
+  base_url = local.ingress_host != "" ? "http://${local.ingress_host}" : ""
 }

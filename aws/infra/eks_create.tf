@@ -34,12 +34,18 @@ resource "aws_eks_node_group" "api_node_group" {
 
   scaling_config {
     desired_size = 1
-    max_size     = 4
+    max_size     = 10
     min_size     = 1
   }
 
   labels = {
     role = "api"
+  }
+
+  tags = {
+    "k8s.io/cluster-autoscaler/enabled"   = "true"
+    "k8s.io/cluster-autoscaler/app-eks"   = "owned"
+    "kubernetes.io/cluster/app-eks"       = "owned"
   }
 
   launch_template {
@@ -64,7 +70,7 @@ resource "aws_eks_node_group" "service_node_group" {
 
   scaling_config {
     desired_size = 1
-    max_size     = 4
+    max_size     = 10
     min_size     = 1
   }
 
@@ -72,6 +78,12 @@ resource "aws_eks_node_group" "service_node_group" {
 
   labels = {
     role = "service"
+  }
+
+  tags = {
+    "k8s.io/cluster-autoscaler/enabled"   = "true"
+    "k8s.io/cluster-autoscaler/app-eks"   = "owned"
+    "kubernetes.io/cluster/app-eks"       = "owned"
   }
 
   launch_template {

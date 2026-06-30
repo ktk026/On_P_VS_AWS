@@ -2,7 +2,6 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "EC2AccessPermissions",
             "Effect": "Allow",
             "Action": [
                 "ec2:CreateVpc",
@@ -50,7 +49,6 @@
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeInternetGateways",
                 "ec2:DescribeNatGateways",
-                "ec2:DescribeImages",
                 "ec2:DescribeAvailabilityZones",
                 "ec2:DescribeAddresses",
                 "ec2:DescribeNetworkInterfaces"
@@ -58,7 +56,6 @@
             "Resource": "*"
         },
         {
-            "Sid": "EKSAccessPermissions",
             "Effect": "Allow",
             "Action": [
                 "eks:CreateCluster",
@@ -89,12 +86,10 @@
             "Resource": "*"
         },
         {
-            "Sid": "ECSAccessPermissions",
             "Effect": "Allow",
             "Action": [
                 "ecs:CreateCluster",
                 "ecs:TagResource",
-                "ecs:DescribeClusters",
                 "ecs:RunTask",
                 "ecs:DescribeTasks",
                 "ecs:ListTasks",
@@ -102,13 +97,11 @@
                 "ecs:DeregisterTaskDefinition",
                 "ecs:DeleteCluster",
                 "ecs:DescribeTaskDefinition",
-                "ecs:DescribeTasks",
                 "ecs:DescribeClusters"
             ],
             "Resource": "*"
         },
         {
-            "Sid": "RDSAccessPermissions",
             "Effect": "Allow",
             "Action": [
                 "rds:CreateDBInstance",
@@ -130,7 +123,6 @@
             "Resource": "*"
         },
         {
-            "Sid": "S3AccessPermissions",
             "Effect": "Allow",
             "Action": [
                 "s3:GetObject",
@@ -141,7 +133,6 @@
             "Resource": "*"
         },
         {
-            "Sid": "SSMAccessPermissions",
             "Effect": "Allow",
             "Action": [
                 "ssm:PutParameter",
@@ -156,7 +147,6 @@
             "Resource": "*"
         },
         {
-            "Sid": "IAMAccessPermissions",
             "Effect": "Allow",
             "Action": [
                 "iam:CreateRole",
@@ -195,7 +185,6 @@
             "Resource": "*"
         },
         {
-            "Sid": "SQSAccessPermissions",
             "Effect": "Allow",
             "Action": [
                 "sqs:CreateQueue",
@@ -214,23 +203,6 @@
                 "ecr:*"
             ],
             "Resource": "*"
-        },
-        {
-            "Effect":"Allow",
-            "Action":[
-                "autoscaling:SetDesiredCapacity",
-                "autoscaling:TerminateInstanceInAutoScalingGroup"
-            ],
-            "Resource":"*"
-        },
-        {
-            "Effect":"Allow",
-            "Action":[
-                "autoscaling:Describe*",
-                "ec2:DescribeLaunchTemplateVersions",
-                "eks:DescribeNodegroup"
-            ],
-            "Resource":"*"
         }
     ]
 }

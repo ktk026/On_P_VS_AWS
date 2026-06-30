@@ -47,5 +47,8 @@ resource "aws_ssm_parameter" "base_url" {
   name  = "/shoply/base_url"
   type  = "String"
 
-  value = "http://${data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].hostname}"
+  value = try(
+    "http://${data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].hostname}",
+    "http://pending"
+  )
 }
