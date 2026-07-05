@@ -1,110 +1,158 @@
-# AWS EKS 인프라 설계 — Terraform IaC 기반 벤치마킹 인프라 구축
+# AWS EKS 인프라 구축기 — Shoply Benchmark Project
 
-## 프로젝트 개요
-
-**Shoply Benchmark Project**는 동일한 쇼핑몰 MSA 애플리케이션(7개 마이크로서비스)을 온프레미스(EC2+KVM)와 AWS EKS 두 환경에 동일 사양으로 배포하고, k6 부하 테스트로 "고정 자원 vs 탄력 자원"이라는 단 하나의 변수를 비교 측정한 팀 프로젝트입니다.
-
-이 문서는 팀 내에서 제가 담당한 **AWS EKS 인프라 설계** 파트를 중심으로, 설계 배경·구현 내용·트러블슈팅 과정을 상세히 정리한 것입니다.
-
-- **담당 역할**: AWS EKS 인프라 설계 (Terraform IaC)
-- **핵심 작업**: Terraform IaC로 VPC·보안그룹·EKS·RDS를 코드로 프로비저닝
-- **리전**: AWS 서울 리전 (ap-northeast-2)
-- **실험 비교 대상**: 온프레미스(고정 자원) vs AWS EKS(탄력 자원, HPA + Karpenter)
+> 온프레미스(EC2+KVM) vs AWS EKS, 같은 쇼핑몰 앱을 두 환경에 띄우고 "탄력성"이라는 단 하나의 변수로 비교한 팀 프로젝트에서, AWS EKS 인프라 설계를 담당하며 진행한 과정을 정리했습니다.
 
 ---
 
-## 1. 설계 목표와 원칙
+## 1. 프로젝트에서 내가 맡은 부분
 
-실험의 핵심은 **"노드 자동확장 유무"라는 단 하나의 변수**만 다르게 두고 나머지 조건을 최대한 동일하게 맞추는 것이었습니다. 이를 위해 다음 원칙을 세우고 인프라를 설계했습니다.
+팀은 4명이 각자 온프레미스, EKS 인프라, 서비스 배포, CI/CD·부하테스트를 나눠 맡았고, 저는 그중 **AWS EKS 인프라 설계**를 담당했습니다. Terraform으로 VPC부터 EKS, 보안그룹, IAM, RDS, Redis까지 전 계층을 코드로 구성하는 것이 목표였습니다.
 
-- **동일 스펙 고정**: 온프레미스 워커 노드와 동일한 `c8i-flex.large` 사양으로 EKS 워커 노드 인스턴스 타입을 고정
-- **Auto Mode 배제**: EKS Auto Mode 대신 **Managed Node Group**을 직접 구성하여, 탄력성 여부(Karpenter 오토스케일링)만 변수로 남김
-- **전 계층 선언적 관리**: VPC부터 EKS, RDS, Redis까지 모든 계층을 Terraform 코드로 선언하여 수동 설정을 배제하고 재현성을 확보
-- **한 번에 구축/삭제/재생성 가능**: 실험을 여러 번 반복해야 했기 때문에, 인프라를 통째로 지웠다가 다시 올려도 항상 같은 결과가 나오도록 멱등성을 고려해 설계
+실험의 핵심 변수는 "노드 자동확장 유무" 하나였기 때문에, 온프레미스 워커 노드와 동일한 스펙(`c8i-flex.large`)으로 EKS 워커 노드를 고정하고, EKS Auto Mode 대신 Managed Node Group + Karpenter 조합을 직접 구성해서 이 변수 하나만 남도록 설계했습니다.
+
+![Terraform으로 구성한 EKS 전체 아키텍처 다이어그램](경로/architecture-diagram.png)
+*VPC → EKS 노드그룹 → RDS/Redis까지 이어지는 전체 구조도*
 
 ---
 
-## 2. 아키텍처 구성
+## 2. 이렇게 만들었습니다
 
-### 2.1 네트워크 계층
-- **VPC / Subnet**: 퍼블릭 서브넷 2개(2a, 2c)로 구성된 VPC
-- **보안그룹(Security Group)**: 역할별로 총 5개를 분리해 최소 권한 원칙 적용
-  - `app-eks-worker-sg` — 워커 노드용
-  - `app-load-balancer-sg` — 80/443 인그레스 트래픽 허용
-  - `app-rds-sg` — RDS 접근용, 노드 보안그룹만 허용
-  - `app-redis-sg` — Redis 접근용, 노드 보안그룹만 허용
-  - `app-k6-sg` — 부하 테스트 서버 전용
-- **엔드포인트**: 클러스터 통신에 필요한 VPC 엔드포인트 구성
+### 2.1 네트워크 & 보안 계층
+VPC와 퍼블릭 서브넷 2개(2a, 2c)로 네트워크를 구성하고, 역할별로 보안그룹을 5개로 나눠 최소 권한 원칙을 지켰습니다.
 
-### 2.2 컴퓨팅(클러스터) 계층
-- **EKS 노드그룹**: Managed Node Group 방식, `t3.medium`(Ops용) / `c8i-flex.large`(온프레미스와 동일 사양)로 인스턴스 타입 고정
-- **Launch Template을 Terraform으로 직접 관리**
-  - `eks_api_nodes_template` (api 노드그룹), `eks_service_nodes_template` (service 노드그룹) 두 개로 역할 분리
-  - AMI는 하드코딩하지 않고 `data.aws_ssm_parameter.eks_ubuntu_ami` SSM 파라미터로 최신 Ubuntu EKS AMI를 동적으로 조회
-  - 보안그룹은 `cluster_security_group`과 `eks_worker_sg`를 이중으로 적용
-  - `lifecycle { create_before_destroy = true }`를 설정해 노드 교체 시 무중단 전환이 가능하도록 구성
-- **Ingress**: Nginx Ingress를 AWS Managed Node Group 위에 배치, DaemonSet으로 모든 노드에 Node Exporter, cAdvisor, Promtail을 배포해 관찰성 확보
+| 보안그룹 | 용도 |
+|---|---|
+| `app-eks-worker-sg` | 워커 노드 |
+| `app-load-balancer-sg` | 80/443 인그레스 트래픽 허용 |
+| `app-rds-sg` | RDS 접근, 워커 노드 SG만 허용 |
+| `app-redis-sg` | Redis 접근, 워커 노드 SG만 허용 |
+| `app-k6-sg` | 부하 테스트 서버 전용 |
+
+📸 **코드 스크린샷 추천**: `security_groups.tf`에서 5개 SG와 각 `ingress`/`egress` 블록이 한 화면에 보이는 부분
+
+IAM은 `infra_group`(VPC·EKS 프로비저닝), `k8s_group`(클러스터 운영), `cicd_group`(ECR push·배포) 세 그룹으로 나눠 관리했고, 그룹 정책은 아래처럼 정책 파일을 참조하면서 그룹 생성 이후에 적용되도록 의존성을 명시했습니다.
+
+```hcl
+resource "aws_iam_group_policy" "infra_policy" {
+  name  = "infra_group"
+  group = aws_iam_group.infra_group.name
+  policy = file("${path.module}/infra_group.json")
+  depends_on = [aws_iam_group.infra_group]
+}
+
+resource "aws_iam_group_policy" "k8s_policy" {
+  name  = "k8s_group"
+  group = aws_iam_group.k8s_group.name
+  policy = file("${path.module}/k8s_group.json")
+  depends_on = [aws_iam_group.k8s_group]
+}
+
+resource "aws_iam_group_policy" "cicd_policy" {
+  name  = "cicd_group"
+  group = aws_iam_group.cicd_group.name
+  policy = file("${path.module}/cicd_group.json")
+  depends_on = [aws_iam_group.cicd_group]
+}
+```
+
+📸 **코드 스크린샷 추천**: 위 IAM 그룹 정책 코드가 실제 IDE에 열려 있는 화면 + AWS 콘솔의 IAM 그룹 3개 목록
+
+### 2.2 컴퓨팅 계층 (EKS)
+Launch Template을 Terraform으로 직접 관리해서, 온프레미스 워커 노드와 동일한 스펙(`c8i-flex.large`)으로 EKS 워커 노드 인스턴스 타입을 고정했습니다. api 노드그룹과 service 노드그룹으로 역할을 분리했습니다.
+
+```hcl
+resource "aws_launch_template" "eks_api_nodes_template" {
+  name_prefix   = "eks-api-node-"
+  image_id      = data.aws_ssm_parameter.eks_ubuntu_ami.value
+  instance_type = "c8i-flex.large"
+  key_name      = var.key_name
+
+  vpc_security_group_ids = [
+    aws_eks_cluster.eks.vpc_config[0].cluster_security_group_id,
+    aws_security_group.eks_worker_sg.id
+  ]
+
+  user_data = base64encode(local.eks_node_user_data)
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = { Name = "eks-api-node-instance" }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+```
+
+- **AMI**: 하드코딩 대신 `data.aws_ssm_parameter.eks_ubuntu_ami`로 최신 Ubuntu EKS AMI를 동적으로 조회
+- **보안그룹**: `cluster_security_group`과 `eks_worker_sg`를 이중으로 적용
+- **무중단 교체**: `create_before_destroy = true`로 노드 교체 시 서비스 끊김 방지
+
+📸 **코드 스크린샷 추천**: 위 Launch Template 코드 전체(2개 노드그룹 템플릿이 나란히 보이는 IDE 화면)
 
 ### 2.3 데이터 계층
-- **RDS PostgreSQL 16**: 관리형 DB로 구성, 온프레미스의 EC2 PostgreSQL 16과 엔진 버전을 동일하게 맞춤
-- **Redis**: 전용 ENI를 통해 **Private IP를 고정**하여, 클러스터 재생성이나 노드 스케일링이 발생해도 연결이 끊기지 않도록 설계
-- **RDS 마이그레이션 자동화**: 스키마 마이그레이션을 자동화하고 여러 번 실행해도 같은 결과가 나오도록 멱등성을 확보
+RDS PostgreSQL 16을 관리형으로 구성해 온프레미스의 EC2 PostgreSQL 16과 엔진 버전을 맞췄습니다. Redis는 클러스터를 몇 번이고 다시 만들어야 하는 실험 환경 특성상, 재생성해도 연결이 끊기지 않도록 전용 ENI를 별도로 만들어 Private IP를 고정했습니다.
 
-### 2.4 IAM 설계
-Terraform으로 IAM 그룹과 정책을 역할별로 3개 그룹으로 분리해 최소 권한 원칙을 적용했습니다.
+```hcl
+resource "aws_network_interface" "redis_eni" {
+  subnet_id       = aws_subnet.public_2a.id
+  security_groups = [aws_security_group.app_redis_sg.id]
+  private_ips     = ["10.0.1.50"]
+}
 
-| 그룹 | 용도 |
-|---|---|
-| `infra_group` | VPC·EKS 프로비저닝 권한 |
-| `k8s_group` | 클러스터 운영 권한 |
-| `cicd_group` | ECR push·배포 권한 |
+resource "aws_instance" "redis" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "c8i-flex.large"
 
-각 그룹은 `aws_iam_group_policy` 리소스로 정의하고, 정책 JSON 파일을 `depends_on`으로 그룹 생성 이후에 적용되도록 의존성을 명시했습니다.
+  network_interface {
+    network_interface_id = aws_network_interface.redis_eni.id
+    device_index          = 0
+  }
+}
+```
+
+📸 **코드 스크린샷 추천**: `aws_network_interface` + `aws_instance` 코드 화면, 그리고 EC2 콘솔에서 Redis 인스턴스에 고정된 Private IP가 보이는 화면
+
+### 2.4 관찰성 (모니터링 연동)
+EKS 쪽에는 별도로 Prometheus/Grafana를 두지 않고, 모든 노드에 DaemonSet(Node Exporter, cAdvisor, Promtail)만 배포해서 메트릭·로그를 노출하도록 했습니다. Taint/Toleration으로 Ops 노드와 Worker 노드를 분리해, 모니터링 에이전트가 실험 워크로드의 자원을 갉아먹지 않도록 신경 썼습니다.
+
+```yaml
+tolerations:
+  - key: "node-role"
+    operator: "Equal"
+    value: "ops"
+    effect: "NoSchedule"
+```
+
+📸 **코드 스크린샷 추천**: DaemonSet values.yaml의 `tolerations` 블록 + `kubectl get pods -o wide`로 Exporter가 모든 노드에 떠 있는 화면
 
 ### 2.5 이미지 저장소 (ECR)
-7개 마이크로서비스(api/gateway, frontend, inventory, order, payment, product, user) 각각에 대해 ECR 리포지토리를 생성하고, AES-256 암호화를 적용해 이미지 저장소를 관리했습니다.
+7개 마이크로서비스(gateway, product, inventory, order, payment, user, frontend) 각각에 대해 ECR 리포지토리를 Terraform으로 생성하고 AES-256 암호화를 적용했습니다.
+
+```hcl
+resource "aws_ecr_repository" "services" {
+  for_each             = toset(["gateway", "product", "inventory", "order", "payment", "user", "frontend"])
+  name                 = "app-${each.key}"
+  image_tag_mutability = "MUTABLE"
+
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+}
+```
+
+![ECR 레지스트리 — 7개 서비스 리포지토리 목록](경로/ecr-repositories.png)
 
 ---
 
-## 3. 트러블슈팅 상세
+## 3. 결과
 
-실제로 겪었던 문제들과 원인 분석, 해결 과정을 정리했습니다.
+같은 부하 조건에서 온프레미스는 노드가 꽉 차면 파드가 Pending으로 쌓이기만 했지만, EKS는 HPA가 Pod를 늘리고 Karpenter가 뒤따라 노드를 자동으로 붙이면서 서비스를 계속 유지했습니다. CPU 사용률이 최대 90.83%까지 올라가는 상황에서도 자원 부족으로 막히지 않았고, 이건 처음 설계할 때 목표했던 "탄력성 유무만 변수로 남긴다"는 방향이 제대로 작동했다는 걸 확인시켜준 결과였습니다.
 
-### 3.1 EKS → Redis 연결 거부 (Connection Refused)
-
-- **증상**: EKS 클러스터 내 파드에서 Redis로 접속을 시도하면 `Connection Refused` 에러 발생
-- **원인 분석**: `app-redis-sg` 보안그룹의 인바운드 규칙에 EKS 워커 노드의 CIDR 대역이 누락되어 있었습니다. 즉, Redis 보안그룹이 EKS 노드 쪽에서 오는 6379 포트 트래픽을 아예 허용하고 있지 않았습니다.
-- **해결**: `app-redis-sg`에 6379 포트에 대한 인바운드 규칙을 추가해 EKS 워커 노드 보안그룹으로부터의 접근을 허용하도록 수정. 이후 정상적으로 연결이 복구되었습니다.
-- **배운 점**: 데이터 계층 보안그룹을 설계할 때 "누가 접근해야 하는가"를 노드그룹 단위까지 구체적으로 명시하지 않으면, 클러스터를 새로 구성할 때마다 동일한 문제가 반복될 수 있다는 것을 체감했습니다. 이후 관련 SG 규칙을 Terraform 변수로 관리해 재발을 방지했습니다.
-
-### 3.2 EKS Cluster 삭제 실패
-
-- **증상**: `terraform destroy` 실행 시 EKS 클러스터가 삭제되지 않고 중간에 멈추는 현상 발생. 실험을 반복하려면 인프라를 여러 번 지웠다가 다시 만들어야 했기 때문에 이 문제가 반복 작업을 크게 지연시켰습니다.
-- **원인 분석**: 노드그룹, 보안그룹, VPC 등 리소스 간 삭제 순서(의존성)가 명확하게 선언되어 있지 않아, Terraform이 아직 참조 중인 리소스를 먼저 삭제하려다 실패하는 상황이었습니다.
-- **해결**: 관련 리소스에 `depends_on`을 명시적으로 추가해 삭제 의존성 순서를 Terraform이 올바르게 인식하도록 관리했습니다. 이를 통해 노드그룹 → 클러스터 → 네트워크 리소스 순으로 안전하게 삭제되도록 개선했습니다.
-- **배운 점**: Terraform은 리소스 간 암묵적 의존성을 최대한 추론하지만, 완벽하지 않은 경우가 있다는 것을 확인했습니다. 특히 클러스터처럼 여러 하위 리소스를 가진 복합 리소스는 삭제 순서를 명시적으로 관리하는 것이 안전하다는 교훈을 얻었습니다.
-
-### 3.3 Node Join 실패
-
-- **증상**: 새로 생성된 워커 노드가 EKS 클러스터에 정상적으로 조인되지 않는 문제 발생
-- **원인 분석**: 노드의 Bootstrap 설정에서 클러스터 API 서버로 연결하는 Bootstrap Endpoint 설정이 올바르지 않았습니다.
-- **해결**: User Data 스크립트 내 Bootstrap Endpoint 설정을 클러스터 엔드포인트에 맞게 수정하여 노드가 정상적으로 클러스터에 조인되도록 조치했습니다.
-- **배운 점**: Launch Template의 User Data는 클러스터 생성 후 값이 확정되는 정보(엔드포인트, CA 인증서 등)에 의존하기 때문에, Terraform 리소스 간 참조 순서와 값 전달을 정확히 맞추는 것이 중요하다는 것을 배웠습니다.
-
-### 3.4 Redis 포트 충돌
-
-- **증상**: 새로운 Redis 인스턴스를 띄우는 과정에서 기존에 남아 있던 Redis 프로세스와 포트가 충돌하는 문제 발생
-- **원인 분석**: 인프라를 반복적으로 재생성하는 실험 환경 특성상, 이전 실행에서 종료되지 않은 Redis 프로세스가 남아 포트를 계속 점유하고 있었습니다.
-- **해결**: User Data 스크립트에 기존 Redis 프로세스를 먼저 종료하는 로직을 추가해, 인스턴스가 새로 시작될 때마다 깨끗한 상태에서 Redis가 기동되도록 처리했습니다.
-- **배운 점**: 반복 재현이 핵심인 벤치마킹 인프라에서는 "새로 시작할 때 이전 상태를 확실히 정리하는" 멱등성 처리가 특히 중요하다는 것을 실감했습니다.
+![온프레미스 vs EKS 최종 비교 결과표](경로/final-comparison-result.png)
+*트래픽 급증 시 온프레미스는 Pending 적체, EKS는 HPA+Karpenter로 자동 확장된 최종 비교 결과*
 
 ---
 
-## 4. 결과 및 회고
-
-- 의존성·네트워크·자원 충돌 문제를 모두 **코드(Terraform)로 해결**함으로써, 사람이 수동으로 개입하지 않아도 신뢰할 수 있는 실험 환경을 반복적으로 재현할 수 있는 인프라를 구축했습니다.
-- 온프레미스와 동일한 인스턴스 사양(`c8i-flex.large`)으로 고정하고 Auto Mode를 배제함으로써, 실험에서 **"탄력성 유무"라는 변수 하나만 남기는 공정한 비교 환경**을 만들 수 있었습니다.
-- 실제 부하 테스트 결과, EKS 환경은 HPA와 Karpenter를 통해 CPU 사용률이 최대 90.83%까지 치솟는 상황에서도 노드를 자동으로 늘려가며 서비스를 유지했고, 이는 설계 단계에서 목표했던 "탄력 자원 vs 고정 자원" 비교가 의도한 대로 작동했음을 검증하는 결과였습니다.
-- 이 과정에서 Terraform으로 인프라 전체 생명주기(생성-운영-삭제-재생성)를 관리하는 경험을 쌓았고, 특히 **리소스 간 의존성 관리, 보안그룹 설계, 반복 재현 가능한 인프라 설계**에 대한 실전 감각을 얻었습니다.
-
----
+*Shoply Benchmark Project — AWS EKS 인프라 설계 파트 (Terraform IaC)*
